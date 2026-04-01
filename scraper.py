@@ -5,6 +5,27 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0"
 }
 
+def extract_result_text(soup):
+    headings = soup.find_all(["h2", "h3", "h4"])
+
+    for h in headings:
+        text = h.text.lower()
+        if "result" in text:
+            return h.text.strip()
+    return None
+
+
+def extract_image(soup):
+    images = soup.find_all("img")
+
+    for img in images:
+        src = img.get("src", "")
+        if "result" in src.lower() or "lottery" in src.lower():
+            return src
+
+    return ""
+
+
 def scrape_single_source(url):
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
@@ -12,18 +33,10 @@ def scrape_single_source(url):
 
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # safer extraction
-        title_tag = soup.find("h2")
-        img_tag = soup.find("img")
+        title = extract_result_text(soup)
+        image = extract_image(soup)
 
-        if not title_tag or not img_tag:
-            return None
-
-        title = title_tag.text.strip()
-        image = img_tag.get("src")
-
-        # basic validation
-        if len(title) < 5:
+        if not title:
             return None
 
         return {
@@ -37,20 +50,9 @@ def scrape_single_source(url):
         return None
 
 
-def get_nagaland_result():
-    sources = [
-        "https://lotterysambadresult.in/",
-        "https://www.lotterysambad.com/",
-        "https://lotto.in/nagaland-lottery-result"
-    ]
-
-    for url in sources:
+def get_result_from_sources(source_list):
+    for url in source_list:
         data = scrape_single_source(url)
         if data:
             return data
-
-    return {
-        "title": "Result not found",
-        "image": "",
-        "source": "none"
-    }
+    return None
