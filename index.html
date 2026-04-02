@@ -2057,6 +2057,30 @@
       localStorage.setItem('darkMode', darkMode);
       applyTheme();
     });
+    
+    function loadResults() {
+  fetch("results.json")
+    .then(res => res.json())
+    .then(data => {
+
+      const latest = data.nagaland[0];
+
+      if (latest.image) {
+        document.getElementById("result-image").src = latest.image;
+      }
+
+      if (latest.pdf) {
+        document.getElementById("pdf-iframe").src = latest.pdf;
+        document.getElementById("download-btn").href = latest.pdf;
+      }
+
+      if (latest.date) {
+        document.getElementById("result-date-badge").innerText = latest.date;
+      }
+
+    })
+    .catch(err => console.log("Error loading data:", err));
+}
 
     // ── SHARE API ──
     function shareResult() {
