@@ -1,11 +1,24 @@
 {
-    "nagaland_1pm": {
-        "state": "nagaland",
-        "result": "Lottery Sambad Result",
-        "draw": "1PM",
-        "date": "2026-04-02",
-        "pdf": "",
-        "source": "https://lotterysambadresult.in/",
-        "verified": false
+  "nagaland": [
+    {
+      "title": "Nagaland Lottery Result 1PM",
+      "state": "nagaland",
+      "draw": "1PM",
+      "date": "2026-04-02",
+      "pdf": "https://example.com/nagaland-1pm.pdf",
+      "image": "https://example.com/nagaland-1pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true
+    },
+    {
+      "title": "Nagaland Lottery Result 1PM",
+      "state": "nagaland",
+      "draw": "1PM",
+      "date": "2026-04-01",
+      "pdf": "https://example.com/nagaland-1pm-old.pdf",
+      "image": "https://example.com/nagaland-1pm-old.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true
     }
+  ]
 }
