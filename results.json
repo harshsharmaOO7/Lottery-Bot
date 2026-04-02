@@ -1,11 +1,20 @@
 {
-    "nagaland_unknown": {
+    "nagaland_1pm": {
+        "state": "nagaland",
         "result": "Lottery Sambad Result",
-        "draw": "unknown",
-        "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_69cd2e2eab7db.webp",
+        "draw": "1PM",
         "date": "2026-04-02",
-        "source": "https://lotterysambadresult.in/",
         "pdf": "",
+        "source": "https://lotterysambadresult.in/",
+        "verified": false
+    },
+    "kerala_1pm": {
+        "state": "kerala",
+        "result": "Keraala lottery result today Thursday Live 02\u00a0April\u00a02026",
+        "draw": "1PM",
+        "date": "2026-04-02",
+        "pdf": "",
+        "source": "https://www.keralalotteryresult.net/",
         "verified": false
     }
 }
