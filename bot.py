@@ -1,52 +1,53 @@
 import json
 import os
 
-from scraper import get_result_from_sources
-from parser import parse_result
+from scraper import get_result
+from parser import parse_data
+
 
 def load_sources():
     with open("sources.json") as f:
         return json.load(f)
 
-def load_old_results():
+
+def load_old():
     if os.path.exists("results.json"):
         with open("results.json") as f:
             return json.load(f)
     return {}
 
-def save_results(data):
+
+def save(data):
     with open("results.json", "w") as f:
         json.dump(data, f, indent=4)
 
+
 def main():
     sources = load_sources()
-    old_data = load_old_results()
-
+    old = load_old()
     new_data = {}
 
-    # Only Nagaland for now (expand later)
-    nagaland_sources = sources.get("nagaland", [])
+    for state, urls in sources.items():
+        raw = get_result(urls)
 
-    raw = get_result_from_sources(nagaland_sources)
+        if not raw:
+            continue
 
-    if not raw:
-        print("No data found")
-        return
+        parsed = parse_data(raw, state)
+        key = f"{state}_{parsed['draw'].lower()}"
 
-    parsed = parse_result(raw)
+        # Duplicate check
+        if old.get(key, {}).get("result") == parsed["result"]:
+            print("No update:", key)
+            continue
 
-    key = f"nagaland_{parsed['draw'].lower()}"
+        new_data[key] = parsed
+        print("Updated:", key)
 
-    # Duplicate check
-    if old_data.get(key, {}).get("result") == parsed["result"]:
-        print("No new update")
-        return
-
-    new_data[key] = parsed
-
-    save_results(new_data)
-
-    print("Updated:", key)
+    if new_data:
+        save(new_data)
+    else:
+        print("No new data")
 
 
 if __name__ == "__main__":
