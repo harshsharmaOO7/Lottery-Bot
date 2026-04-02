@@ -1,58 +1,52 @@
 import requests
 from bs4 import BeautifulSoup
+import re
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0"
-}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-def extract_result_text(soup):
-    headings = soup.find_all(["h2", "h3", "h4"])
-
-    for h in headings:
-        text = h.text.lower()
-        if "result" in text:
-            return h.text.strip()
-    return None
+def extract_result_number(text):
+    match = re.search(r'\b\d{5}\b', text)
+    return match.group() if match else text
 
 
-def extract_image(soup):
-    images = soup.find_all("img")
+def extract_pdf(soup):
+    links = soup.find_all("a")
 
-    for img in images:
-        src = img.get("src", "")
-        if "result" in src.lower() or "lottery" in src.lower():
-            return src
+    for link in links:
+        href = link.get("href", "")
+        if ".pdf" in href:
+            return href
 
     return ""
 
 
-def scrape_single_source(url):
+def scrape_site(url):
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
-        res.raise_for_status()
-
         soup = BeautifulSoup(res.text, "html.parser")
 
-        title = extract_result_text(soup)
-        image = extract_image(soup)
+        headings = soup.find_all(["h2", "h3"])
 
-        if not title:
-            return None
+        for h in headings:
+            text = h.text.strip()
 
-        return {
-            "title": title,
-            "image": image,
-            "source": url
-        }
+            if "result" in text.lower():
+                return {
+                    "result": extract_result_number(text),
+                    "raw": text,
+                    "pdf": extract_pdf(soup),
+                    "source": url
+                }
 
     except Exception as e:
-        print(f"Error scraping {url}: {e}")
-        return None
+        print("Error:", e)
+
+    return None
 
 
-def get_result_from_sources(source_list):
-    for url in source_list:
-        data = scrape_single_source(url)
+def get_result(sources):
+    for url in sources:
+        data = scrape_site(url)
         if data:
             return data
     return None
