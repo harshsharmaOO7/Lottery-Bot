@@ -1,20 +1,96 @@
 {
-    "nagaland_1pm": {
-        "state": "nagaland",
-        "result": "Lottery Sambad Result",
-        "draw": "1PM",
-        "date": "2026-04-02",
-        "pdf": "",
-        "source": "https://lotterysambadresult.in/",
-        "verified": false
+  "nagaland": [
+    {
+      "date": "2026-04-03",
+      "draw": "8PM",
+      "draw_name": "Dear Pelican Night",
+      "pdf": "pdfs/2026-04-03-nagaland-8pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-03-dear-pelican-night.pdf",
+      "image": "images/2026-04-03-nagaland-8pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-03T20:05:30+05:30"
     },
-    "kerala_1pm": {
-        "state": "kerala",
-        "result": "Keraala lottery result today Friday Live 03\u00a0April\u00a02026",
-        "draw": "1PM",
-        "date": "2026-04-02",
-        "pdf": "",
-        "source": "https://www.keralalotteryresult.net/",
-        "verified": false
+    {
+      "date": "2026-04-03",
+      "draw": "6PM",
+      "draw_name": "Dear Cupid Evening",
+      "pdf": "pdfs/2026-04-03-nagaland-6pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-03-dear-cupid-evening.pdf",
+      "image": "images/2026-04-03-nagaland-6pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-03T18:05:20+05:30"
+    },
+    {
+      "date": "2026-04-03",
+      "draw": "1PM",
+      "draw_name": "Dear Indus Morning",
+      "pdf": "pdfs/2026-04-03-nagaland-1pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-03-dear-indus-morning.pdf",
+      "image": "images/2026-04-03-nagaland-1pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-03T13:05:10+05:30"
+    },
+    {
+      "date": "2026-04-02",
+      "draw": "8PM",
+      "draw_name": "Dear Goose Night",
+      "pdf": "pdfs/2026-04-02-nagaland-8pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-02-dear-goose-night.pdf",
+      "image": "images/2026-04-02-nagaland-8pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-02T20:05:30+05:30"
+    },
+    {
+      "date": "2026-04-02",
+      "draw": "6PM",
+      "draw_name": "Dear Comet Evening",
+      "pdf": "pdfs/2026-04-02-nagaland-6pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-02-dear-comet-evening.pdf",
+      "image": "images/2026-04-02-nagaland-6pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-02T18:05:20+05:30"
+    },
+    {
+      "date": "2026-04-02",
+      "draw": "1PM",
+      "draw_name": "Dear Godavari Morning",
+      "pdf": "pdfs/2026-04-02-nagaland-1pm.pdf",
+      "pdf_url": "https://www.nagalandlotteries.com/pdfs/2026-04-02-dear-godavari-morning.pdf",
+      "image": "images/2026-04-02-nagaland-1pm.jpg",
+      "source": "https://www.nagalandlotteries.com/results.php",
+      "verified": true,
+      "fetched_at": "2026-04-02T13:05:10+05:30"
     }
+  ],
+  "kerala": [
+    {
+      "date": "2026-04-03",
+      "draw": "3PM",
+      "draw_name": "Nirmal (NR)",
+      "pdf": "pdfs/2026-04-03-kerala-3pm.pdf",
+      "pdf_url": "https://statelottery.kerala.gov.in/pdfs/NR-result-2026-04-03.pdf",
+      "image": "images/2026-04-03-kerala-3pm.jpg",
+      "source": "https://statelottery.kerala.gov.in/index.php/lottery-result-view",
+      "verified": true,
+      "fetched_at": "2026-04-03T15:05:00+05:30"
+    },
+    {
+      "date": "2026-04-02",
+      "draw": "3PM",
+      "draw_name": "Karunya Plus (KN)",
+      "pdf": "pdfs/2026-04-02-kerala-3pm.pdf",
+      "pdf_url": "https://statelottery.kerala.gov.in/pdfs/KN-result-2026-04-02.pdf",
+      "image": "images/2026-04-02-kerala-3pm.jpg",
+      "source": "https://statelottery.kerala.gov.in/index.php/lottery-result-view",
+      "verified": true,
+      "fetched_at": "2026-04-02T15:05:00+05:30"
+    }
+  ],
+  "last_updated": "2026-04-03T20:05:30+05:30",
+  "total_records": 8
 }

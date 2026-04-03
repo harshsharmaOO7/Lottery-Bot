@@ -1,2 +1,13 @@
-requests
-beautifulsoup4
+# Core HTTP & HTML parsing
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0           # faster HTML parser for BeautifulSoup
+
+# PDF to image conversion (requires poppler-utils system package)
+pdf2image>=1.16.0
+
+# Image processing
+Pillow>=10.0.0
+
+# Optional: type hints support (Python 3.9 compatibility)
+# typing-extensions>=4.0.0
