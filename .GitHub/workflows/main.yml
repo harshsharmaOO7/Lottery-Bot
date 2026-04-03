@@ -1,1 +1,142 @@
-1 we
+# ════════════════════════════════════════════════════════════════
+#  Lottery Bot — GitHub Actions Workflow
+#  ─────────────────────────────────────────────────────────────
+#  Runs 3× daily at IST draw times:
+#    1:05 PM IST  → 07:35 UTC  (after 1PM result)
+#    6:05 PM IST  → 12:35 UTC  (after 6PM result)
+#    8:10 PM IST  → 14:40 UTC  (after 8PM result)
+#
+#  Also runs on manual trigger (workflow_dispatch).
+#  Commits updated results.json + PDFs + images automatically.
+# ════════════════════════════════════════════════════════════════
+
+name: Lottery Result Bot
+
+on:
+  schedule:
+    # 1 PM IST draw  (UTC+5:30 → UTC: 07:35)
+    - cron: "35 7 * * *"
+    # 6 PM IST draw  (UTC+5:30 → UTC: 12:35)
+    - cron: "35 12 * * *"
+    # 8 PM IST draw  (UTC+5:30 → UTC: 14:40)
+    - cron: "40 14 * * *"
+
+  # Manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      draw:
+        description: "Draw time to fetch (1PM / 6PM / 8PM / 3PM)"
+        required: false
+        default: ""
+      state:
+        description: "State to fetch (nagaland / kerala / all)"
+        required: false
+        default: "all"
+      date:
+        description: "Override date YYYY-MM-DD (leave blank for today)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # required to commit and push changes
+
+jobs:
+  run-bot:
+    name: Fetch & Store Lottery Results
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout repository ──────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1          # shallow clone — faster
+          persist-credentials: true
+
+      # ── 2. Set up Python ────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"            # cache pip packages → faster runs
+
+      # ── 3. Install system dependency for pdf2image ──────────────
+      - name: Install poppler (for PDF→image conversion)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+        continue-on-error: true   # don't fail if poppler unavailable
+
+      # ── 4. Install Python dependencies ──────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip --quiet
+          pip install -r requirements.txt --quiet
+
+      # ── 5. Create required directories ──────────────────────────
+      - name: Ensure pdfs/ and images/ exist
+        run: |
+          mkdir -p pdfs images
+          # Create placeholder .gitkeep so empty dirs are tracked
+          touch pdfs/.gitkeep
+          touch images/.gitkeep
+
+      # ── 6. Run the bot ──────────────────────────────────────────
+      - name: Run Lottery Bot
+        id: run_bot
+        env:
+          PYTHONUNBUFFERED: "1"
+          TZ: "Asia/Kolkata"
+        run: |
+          # Build args dynamically from manual trigger inputs
+          ARGS=""
+
+          if [[ "${{ github.event.inputs.draw }}" != "" ]]; then
+            ARGS="$ARGS --draw ${{ github.event.inputs.draw }}"
+          fi
+
+          if [[ "${{ github.event.inputs.state }}" != "" ]]; then
+            ARGS="$ARGS --state ${{ github.event.inputs.state }}"
+          fi
+
+          if [[ "${{ github.event.inputs.date }}" != "" ]]; then
+            ARGS="$ARGS --date ${{ github.event.inputs.date }}"
+          fi
+
+          echo "Running: python bot.py $ARGS"
+          python bot.py $ARGS
+
+      # ── 7. Commit & push if there are changes ───────────────────
+      - name: Commit and push results
+        run: |
+          git config --global user.name  "Lottery Bot"
+          git config --global user.email "bot@github.com"
+
+          # Stage all changed/new files
+          git add results.json
+          git add pdfs/   || true
+          git add images/ || true
+
+          # Check if there's anything to commit
+          if git diff --cached --quiet; then
+            echo "ℹ️ No changes to commit — results are up to date"
+          else
+            # Create descriptive commit message
+            DATE=$(date -u +"%Y-%m-%d %H:%M UTC")
+            git commit -m "🎯 Update lottery results — ${DATE}"
+            git push
+            echo "✅ Pushed successfully"
+          fi
+
+      # ── 8. Summary ──────────────────────────────────────────────
+      - name: Print summary
+        if: always()
+        run: |
+          echo "=== Bot Run Summary ==="
+          echo "Date    : $(date '+%Y-%m-%d %H:%M IST' --date='TZ=\"Asia/Kolkata\"' 2>/dev/null || date)"
+          echo "Trigger : ${{ github.event_name }}"
+          if [ -f results.json ]; then
+            echo "records : $(python3 -c "import json; d=json.load(open('results.json')); print(d.get('total_records','?'))")"
+            echo "updated : $(python3 -c "import json; d=json.load(open('results.json')); print(d.get('last_updated','?'))")"
+          fi
+          echo "======================"
