@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """
-bot.py — Lottery Result Automation Bot
-========================================
-Main orchestrator. Fetches PDF results from official sources,
-stores them locally, updates results.json (with history preserved),
-and prints a summary.
+bot.py — Lottery Result Automation Bot v3
+==========================================
+Fixed: date not updating (IST-aware date comparison)
+New:   image scraping from lotterysambadresult.in
+New:   sitemap.xml auto-generation
+New:   per-state PDF download + image conversion
 
 Usage:
-    python bot.py                    # auto-detect draw from IST clock
-    python bot.py --draw 8PM         # force specific draw
-    python bot.py --state nagaland   # run single state only
-
-GitHub Actions calls this script 3× daily.
-
-Author : Lottery Bot
-Version: 2.0.0
+    python bot.py                        # auto-detect draw
+    python bot.py --draw 8PM            # force draw
+    python bot.py --draw 8PM --date 2026-04-03
+    python bot.py --state nagaland       # single state
+    python bot.py --skip-image           # skip image scraping
 """
 
 import sys
@@ -23,11 +21,12 @@ import logging
 import argparse
 import datetime
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
-from scraper import get_nagaland_result, get_kerala_result, get_ist_now
-from parser  import build_record
+from scraper       import get_nagaland_result, get_kerala_result
+from parser        import build_record
+from image_scraper import get_result_image
 
-# ── Logging ──────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -37,33 +36,61 @@ log = logging.getLogger("bot")
 
 # ── Config ────────────────────────────────────────────────────────────
 RESULTS_FILE    = Path("results.json")
-MAX_HISTORY     = 30        # keep last N entries per state/draw combo
-STATES_ENABLED  = ["nagaland", "kerala"]   # add more here later
+SITEMAP_FILE    = Path("sitemap.xml")
+MAX_HISTORY     = 30
+STATES_ENABLED  = ["nagaland", "kerala"]
+
+# ← UPDATE → Your GitHub Pages URL
+SITE_BASE = "https://harshsharmaoo7.github.io/Lottery-Bot/"
+
+SITE_PAGES = [
+    ("index.html",                                 "daily",  "1.0"),
+    ("nagaland-lottery-result-today-1pm.html",    "daily",  "0.9"),
+    ("nagaland-lottery-result-today-6pm.html",    "daily",  "0.9"),
+    ("nagaland-lottery-result-today-8pm.html",    "daily",  "0.9"),
+    ("kerala-lottery-result-today.html",           "daily",  "0.9"),
+    ("archive.html",                               "weekly", "0.7"),
+    ("about.html",                                 "monthly","0.5"),
+    ("disclaimer.html",                            "monthly","0.3"),
+]
+
+
+# ── IST helpers ───────────────────────────────────────────────────────
+
+def get_ist_now() -> datetime.datetime:
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+
+
+def get_ist_date() -> str:
+    """Return today's date string in IST (fixes the date-not-updating bug)."""
+    return get_ist_now().strftime("%Y-%m-%d")
+
+
+def get_ist_timestamp() -> str:
+    return get_ist_now().strftime("%Y-%m-%dT%H:%M:%S+05:30")
+
+
+def detect_draw() -> str:
+    """Auto-detect current draw from IST clock."""
+    h = get_ist_now().hour
+    if h < 14:      return "1PM"
+    elif h < 19:    return "6PM"
+    else:           return "8PM"
 
 
 # ── results.json helpers ──────────────────────────────────────────────
 
 def load_results() -> dict:
-    """Load existing results.json or return a fresh skeleton."""
     if RESULTS_FILE.exists():
         try:
-            with open(RESULTS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            log.info(f"Loaded existing results.json")
-            return data
-        except (json.JSONDecodeError, OSError) as e:
+            with open(RESULTS_FILE, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
             log.error(f"Corrupted results.json: {e} — starting fresh")
-
-    return {
-        "nagaland": [],
-        "kerala": [],
-        "last_updated": "",
-        "total_records": 0,
-    }
+    return {s: [] for s in STATES_ENABLED} | {"last_updated": "", "total_records": 0}
 
 
-def save_results(data: dict) -> None:
-    """Write results.json atomically (write to tmp then rename)."""
+def save_results(data: dict):
     tmp = RESULTS_FILE.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -71,188 +98,178 @@ def save_results(data: dict) -> None:
     log.info(f"✓ results.json saved ({RESULTS_FILE.stat().st_size} bytes)")
 
 
-def is_duplicate(existing_list: list, new_record: dict) -> bool:
-    """
-    Return True if a record for the same date+draw already exists.
-    This prevents double-posting the same result.
-    """
-    for rec in existing_list:
-        if rec.get("date") == new_record["date"] and \
-           rec.get("draw") == new_record["draw"]:
-            log.info(
-                f"Duplicate found: {new_record['date']} {new_record['draw']} "
-                f"— skipping"
-            )
+def is_duplicate(lst: list, rec: dict) -> bool:
+    """Check if date+draw already exists."""
+    for r in lst:
+        if r.get("date") == rec["date"] and r.get("draw") == rec["draw"]:
+            log.info(f"Duplicate: {rec['date']} {rec['draw']} — skip")
             return True
     return False
 
 
-def insert_record(existing_list: list, new_record: dict) -> list:
-    """
-    Prepend new_record at the front (newest first).
-    Trim history to MAX_HISTORY entries.
-    """
-    updated = [new_record] + existing_list
-    if len(updated) > MAX_HISTORY:
-        trimmed = len(updated) - MAX_HISTORY
-        log.info(f"Trimming {trimmed} old records (keeping {MAX_HISTORY})")
-        updated = updated[:MAX_HISTORY]
-    return updated
+def prepend(lst: list, rec: dict) -> list:
+    """Add newest first, trim to MAX_HISTORY."""
+    return ([rec] + lst)[:MAX_HISTORY]
 
 
-def count_total(data: dict) -> int:
-    """Count total records across all states."""
-    total = 0
-    for key in STATES_ENABLED:
-        total += len(data.get(key, []))
-    return total
+# ── Sitemap generator ─────────────────────────────────────────────────
+
+def generate_sitemap():
+    """Auto-generate sitemap.xml with today's lastmod."""
+    root = ET.Element("urlset")
+    root.set("xmlns", "https://www.sitemaps.org/schemas/sitemap/0.9")
+    today = get_ist_date()
+
+    for page, freq, pri in SITE_PAGES:
+        url = ET.SubElement(root, "url")
+        ET.SubElement(url, "loc").text = SITE_BASE + page
+        ET.SubElement(url, "lastmod").text = today
+        ET.SubElement(url, "changefreq").text = freq
+        ET.SubElement(url, "priority").text = pri
+
+    tree = ET.ElementTree(root)
+    ET.indent(tree, space="  ")
+    with open(SITEMAP_FILE, "wb") as f:
+        f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+        tree.write(f, encoding="utf-8", xml_declaration=False)
+
+    log.info(f"✓ sitemap.xml updated ({len(SITE_PAGES)} pages)")
 
 
-# ── Fetch helpers ─────────────────────────────────────────────────────
+# ── State runners ─────────────────────────────────────────────────────
 
-def run_nagaland(draw: str, date_str: str, results: dict) -> bool:
-    """Fetch and store Nagaland result. Returns True if new data added."""
-    log.info(f"── Nagaland {draw} ──")
+def run_nagaland(draw: str, date_str: str, results: dict, skip_image: bool) -> bool:
+    log.info(f"━━ Nagaland {draw} ━━")
+
+    # 1. Scrape PDF metadata
     raw = get_nagaland_result(draw)
     if not raw:
-        log.warning(f"Nagaland {draw}: No data from any source")
+        log.warning("No PDF data from any Nagaland source")
         return False
 
+    # 2. Build record (downloads PDF, converts to image via pdf2image)
     record = build_record("nagaland", raw, date_str)
     if not record:
-        log.warning(f"Nagaland {draw}: Record build failed")
+        log.warning("Record build failed")
         return False
 
-    state_list = results.setdefault("nagaland", [])
-    if is_duplicate(state_list, record):
+    # 3. Scrape result image (from lotterysambadresult.in)
+    if not skip_image:
+        pdf_path_str = record.get("pdf", "")
+        pdf_path = Path(pdf_path_str) if pdf_path_str and not pdf_path_str.startswith("http") else None
+
+        img_path = get_result_image(
+            state    = "nagaland",
+            draw     = draw,
+            date_str = date_str,
+            pdf_path = pdf_path,
+        )
+        if img_path:
+            record["image"] = img_path
+            log.info(f"Image: {img_path}")
+        else:
+            log.warning("No image obtained — result will show without image")
+
+    # 4. Duplicate check + insert
+    lst = results.setdefault("nagaland", [])
+    if is_duplicate(lst, record):
         return False
 
-    results["nagaland"] = insert_record(state_list, record)
-    log.info(
-        f"✓ Nagaland {draw} added: pdf={record['pdf']} "
-        f"image={record['image'] or 'N/A'}"
-    )
+    results["nagaland"] = prepend(lst, record)
+    log.info(f"✓ Nagaland {draw} added | date={record['date']}")
     return True
 
 
-def run_kerala(draw: str, date_str: str, results: dict) -> bool:
-    """Fetch and store Kerala result. Returns True if new data added."""
-    # Kerala has a single draw per day (3PM or 4PM depending on lottery)
-    kerala_draw = "3PM"
-    log.info(f"── Kerala {kerala_draw} ──")
-    raw = get_kerala_result(kerala_draw)
+def run_kerala(date_str: str, results: dict, skip_image: bool) -> bool:
+    draw = "3PM"
+    log.info(f"━━ Kerala {draw} ━━")
+
+    raw = get_kerala_result(draw)
     if not raw:
-        log.warning(f"Kerala {kerala_draw}: No data from any source")
+        log.warning("No PDF data from any Kerala source")
         return False
 
     record = build_record("kerala", raw, date_str)
     if not record:
-        log.warning(f"Kerala {kerala_draw}: Record build failed")
         return False
 
-    state_list = results.setdefault("kerala", [])
-    if is_duplicate(state_list, record):
+    # Kerala doesn't have images on Nagaland sambad sites — use PDF fallback only
+    if not skip_image and not record.get("image"):
+        pdf_path_str = record.get("pdf", "")
+        pdf_path = Path(pdf_path_str) if pdf_path_str and not pdf_path_str.startswith("http") else None
+        if pdf_path and pdf_path.exists():
+            from image_scraper import pdf_to_image_fallback, make_seo_filename, IMAGE_DIR
+            slug = make_seo_filename("kerala", draw, date_str)
+            dest = IMAGE_DIR / f"{slug}.jpg"
+            if pdf_to_image_fallback(pdf_path, dest):
+                record["image"] = str(dest).replace("\\", "/")
+
+    lst = results.setdefault("kerala", [])
+    if is_duplicate(lst, record):
         return False
 
-    results["kerala"] = insert_record(state_list, record)
-    log.info(
-        f"✓ Kerala {kerala_draw} added: pdf={record['pdf']} "
-        f"image={record['image'] or 'N/A'}"
-    )
+    results["kerala"] = prepend(lst, record)
+    log.info(f"✓ Kerala {draw} added | date={record['date']}")
     return True
 
 
 # ── Main ──────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="Lottery Result Bot")
-    parser.add_argument(
-        "--draw",
-        choices=["1PM", "6PM", "8PM", "3PM"],
-        default=None,
-        help="Force a specific draw time (default: auto from IST clock)",
-    )
-    parser.add_argument(
-        "--state",
-        choices=STATES_ENABLED + ["all"],
-        default="all",
-        help="Run for a specific state only (default: all)",
-    )
-    parser.add_argument(
-        "--date",
-        default=None,
-        help="Override date (YYYY-MM-DD). Default: today IST",
-    )
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="Lottery Bot v3")
+    p.add_argument("--draw",       choices=["1PM","6PM","8PM","3PM"], default=None)
+    p.add_argument("--state",      choices=STATES_ENABLED + ["all"], default="all")
+    p.add_argument("--date",       default=None, help="YYYY-MM-DD")
+    p.add_argument("--skip-image", action="store_true", help="Skip image scraping")
+    args = p.parse_args()
 
-    # Determine date
-    if args.date:
-        date_str = args.date
-    else:
-        date_str = (get_ist_now()).strftime("%Y-%m-%d")
+    # ── Date (IST-aware — fixes the date not updating bug) ──
+    date_str = args.date or get_ist_date()
 
-    # Determine draw
-    if args.draw:
-        draw = args.draw
-    else:
-        from scraper import detect_draw_from_time
-        draw = detect_draw_from_time()
+    # ── Draw ──
+    draw = args.draw or detect_draw()
 
     log.info("=" * 60)
-    log.info(f" Lottery Bot v2.0 | Date: {date_str} | Draw: {draw}")
-    log.info(f" States: {args.state}")
+    log.info(f"  Lottery Bot v3 | IST Date: {date_str} | Draw: {draw}")
+    log.info(f"  States: {args.state} | Skip image: {args.skip_image}")
     log.info("=" * 60)
 
-    # Load existing results
-    results = load_results()
-
-    # Track whether any new data was added
+    results     = load_results()
     any_updated = False
+    states      = STATES_ENABLED if args.state == "all" else [args.state]
 
-    states_to_run = STATES_ENABLED if args.state == "all" else [args.state]
-
-    for state in states_to_run:
+    for state in states:
         if state == "nagaland":
-            updated = run_nagaland(draw, date_str, results)
+            if run_nagaland(draw, date_str, results, args.skip_image):
+                any_updated = True
         elif state == "kerala":
-            updated = run_kerala(draw, date_str, results)
-        else:
-            log.warning(f"Unknown state: {state}")
-            continue
+            if run_kerala(date_str, results, args.skip_image):
+                any_updated = True
 
-        if updated:
-            any_updated = True
-
-    # Update metadata
-    ist_now = get_ist_now()
-    results["last_updated"] = ist_now.strftime("%Y-%m-%dT%H:%M:%S+05:30")
-    results["total_records"] = count_total(results)
-
-    # Always save (metadata timestamp updates even if no new records)
+    # Always update metadata + save
+    results["last_updated"]  = get_ist_timestamp()
+    results["total_records"] = sum(len(results.get(s, [])) for s in STATES_ENABLED)
     save_results(results)
+
+    # Always regenerate sitemap (updates lastmod daily)
+    generate_sitemap()
 
     # Summary
     log.info("=" * 60)
     if any_updated:
-        log.info("✅ SUCCESS: New results saved")
-        # Print JSON summary for GitHub Actions log
-        for state in states_to_run:
-            entries = results.get(state, [])
-            if entries:
-                latest = entries[0]
-                log.info(
-                    f"  {state.upper()} latest → "
-                    f"{latest['date']} {latest['draw']} | "
-                    f"PDF: {bool(latest.get('pdf'))} | "
-                    f"Image: {bool(latest.get('image'))}"
-                )
+        log.info("✅ New results saved!")
+        for st in states:
+            arr = results.get(st, [])
+            if arr:
+                r = arr[0]
+                log.info(f"  {st.upper()}: {r['date']} {r['draw']} | "
+                         f"PDF={bool(r.get('pdf'))} | Image={bool(r.get('image'))}")
     else:
-        log.info("ℹ️  No new results — database already up to date")
-
-    log.info(f"Total records in DB: {results['total_records']}")
+        log.info("ℹ️  No new data — DB already up to date")
+    log.info(f"  Total records: {results['total_records']}")
+    log.info(f"  Last updated:  {results['last_updated']}")
     log.info("=" * 60)
 
-    # Exit code: 0 = success (GitHub Actions uses this)
     sys.exit(0)
 
 

@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://harshsharmaoo7.github.io/Lottery-Bot/sitemap.xml
+
+# Block bots from PDFs and images directories (save crawl budget)
+User-agent: *
+Disallow: /pdfs/
+Disallow: /images/
+
+# Allow Googlebot full access
+User-agent: Googlebot
+Allow: /

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Old Lottery Results Archive | Nagaland Kerala Lottery Sambad History</title>
+<meta name="description" content="Browse old Nagaland and Kerala lottery results archive. Download previous lottery result PDFs. Complete history of Lottery Sambad results.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://harshsharmaoo7.github.io/Lottery-Bot/archive.html">
+<link rel="stylesheet" href="style.css">
+<style>
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
+.filt-btn{padding:7px 14px;border-radius:999px;font-size:.78rem;font-weight:600;
+  border:1px solid var(--border);background:var(--card);color:var(--muted);
+  cursor:pointer;transition:all var(--ease)}
+.filt-btn.on,.filt-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+.arch-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.arch-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;transition:all var(--ease)}
+.arch-item:hover{border-color:var(--brand2);box-shadow:var(--sh1)}
+.arch-info{flex:1;min-width:0}
+.arch-name{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.arch-meta{font-size:.75rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.arch-badge{display:inline-block;font-size:.62rem;background:var(--brand);
+  color:#fff;padding:2px 7px;border-radius:999px;font-weight:700}
+.arch-badge.green{background:var(--green)}
+.arch-badge.gold{background:var(--gold);color:var(--branddk)}
+.arch-btns{display:flex;gap:6px;flex-shrink:0}
+.load-more{display:flex;justify-content:center;padding:16px 0}
+#no-results{display:none;text-align:center;padding:40px;color:var(--muted)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="moverlay" id="moverlay" onclick="closeNav()" aria-hidden="true"></div>
+<nav class="mnav" id="mnav">
+  <a href="index.html">🏠 Home</a>
+  <a href="nagaland-lottery-result-today-1pm.html">🌅 Nagaland 1PM</a>
+  <a href="nagaland-lottery-result-today-6pm.html">🌆 Nagaland 6PM</a>
+  <a href="nagaland-lottery-result-today-8pm.html">🌙 Nagaland 8PM</a>
+  <a href="kerala-lottery-result-today.html">🌴 Kerala</a>
+  <a href="archive.html" class="cur">📋 Old Results</a>
+</nav>
+<div class="topbar"><div class="wrap">
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span class="tb-badge">🔴 LIVE</span>
+    <span>Results at <strong>1PM · 6PM · 8PM</strong> IST</span>
+  </div>
+  <div class="tb-right">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span id="clock">--:--:-- IST</span>
+  </div>
+</div></div>
+<header role="banner"><div class="wrap hdr">
+  <a href="index.html" class="logo">
+    <div class="logo-icon" aria-hidden="true">🎱</div>
+    <div class="logo-text">
+      <strong>Lottery Sambad Result</strong>
+      <span>Updated 3× Daily · Official PDF</span>
+    </div>
+  </a>
+  <nav class="dnav" aria-label="Main navigation">
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="nagaland-lottery-result-today-1pm.html">1PM</a></li>
+      <li><a href="nagaland-lottery-result-today-6pm.html">6PM</a></li>
+      <li><a href="nagaland-lottery-result-today-8pm.html">8PM</a></li>
+      <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
+      <li><a href="archive.html" class="cur">Old Results</a></li>
+    </ul>
+  </nav>
+  <button class="hbtn" id="themeBtn" aria-label="Toggle dark mode">🌙</button>
+  <button class="hbtn ham" id="hamBtn" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</div></header>
+<div class="bc-wrap"><div class="wrap">
+  <nav class="bc">
+    <a href="index.html">Home</a>
+    <span class="bc-sep">›</span>
+    <span class="bc-cur">Old Results Archive</span>
+  </nav>
+</div></div>
+
+<div class="adwrap"><div class="wrap">
+  <div class="adph banner">Advertisement · 728×90</div>
+</div></div>
+
+<div class="wrap" style="padding-top:24px;padding-bottom:40px;">
+<div class="layout">
+<main id="main" role="main">
+
+  <div class="card">
+    <div class="card-hdr">
+      <h1 style="color:#fff;font-size:1.1rem;font-weight:800;margin:0;">
+        📋 Old Lottery Results Archive
+      </h1>
+      <span class="dbadge" id="total-count">Loading…</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <span style="font-size:.78rem;font-weight:600;color:var(--muted);">Filter:</span>
+        <button class="filt-btn on" onclick="filterResults('all',this)">All</button>
+        <button class="filt-btn" onclick="filterResults('nagaland',this)">Nagaland</button>
+        <button class="filt-btn" onclick="filterResults('kerala',this)">Kerala</button>
+        <button class="filt-btn" onclick="filterResults('1PM',this)">1PM</button>
+        <button class="filt-btn" onclick="filterResults('6PM',this)">6PM</button>
+        <button class="filt-btn" onclick="filterResults('8PM',this)">8PM</button>
+      </div>
+
+      <!-- Loading -->
+      <div id="arch-loading" style="text-align:center;padding:40px;">
+        <div class="spin" style="margin:0 auto 12px;width:26px;height:26px;border-width:3px;" aria-hidden="true"></div>
+        <p style="color:var(--muted);">Loading results…</p>
+      </div>
+
+      <!-- Results list -->
+      <div class="arch-list" id="arch-list"></div>
+
+      <!-- No results -->
+      <div id="no-results" class="err-box">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 10.607z"/></svg>
+        <p>No results found for this filter.</p>
+      </div>
+
+      <!-- Load more -->
+      <div class="load-more" id="load-more" style="display:none;">
+        <button class="btn btn-out" onclick="loadMore()">Load More Results</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice" role="note">
+    <strong>⚠️ Disclaimer</strong>
+    These historical results are for reference only. Always verify results at the official government lottery websites. We are not affiliated with any lottery department.
+  </div>
+</main>
+
+<aside aria-label="Sidebar">
+  <div class="sw">
+    <div class="sw-ttl">Advertisement</div>
+    <div style="padding:12px;"><div class="adph rect">Ad · 300×250</div></div>
+  </div>
+  <div class="sw">
+    <div class="sw-ttl">🔗 Quick Links</div>
+    <div class="sw-body">
+      <ul class="sr-list" role="list">
+        <li><a class="sri" href="nagaland-lottery-result-today-1pm.html"><span class="si"><span class="sn">🌅 Nagaland 1PM Today</span></span><span class="sa">›</span></a></li>
+        <li><a class="sri" href="nagaland-lottery-result-today-6pm.html"><span class="si"><span class="sn">🌆 Nagaland 6PM Today</span></span><span class="sa">›</span></a></li>
+        <li><a class="sri" href="nagaland-lottery-result-today-8pm.html"><span class="si"><span class="sn">🌙 Nagaland 8PM Today</span></span><span class="sa">›</span></a></li>
+        <li><a class="sri" href="kerala-lottery-result-today.html"><span class="si"><span class="sn">🌴 Kerala Today</span></span><span class="sa">›</span></a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="sw">
+    <div class="sw-ttl">Advertisement</div>
+    <div style="padding:12px;"><div class="adph rect">Ad · 300×250</div></div>
+  </div>
+</aside>
+</div>
+</div>
+
+<footer role="contentinfo"><div class="wrap">
+  <div class="ft-top">
+    <div class="ft-brand">
+      <a href="index.html" class="logo"><div class="logo-icon" aria-hidden="true">🎱</div>
+        <div class="logo-text"><strong>Lottery Sambad Result</strong><span>India's Trusted Portal</span></div>
+      </a>
+      <p class="ft-desc">Complete archive of Nagaland and Kerala lottery result PDFs.</p>
+    </div>
+    <div class="ft-col">
+      <h4>Nagaland</h4>
+      <ul class="ft-links">
+        <li><a href="nagaland-lottery-result-today-1pm.html">1PM Result</a></li>
+        <li><a href="nagaland-lottery-result-today-6pm.html">6PM Result</a></li>
+        <li><a href="nagaland-lottery-result-today-8pm.html">8PM Result</a></li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h4>Info</h4>
+      <ul class="ft-links">
+        <li><a href="about.html">About</a></li>
+        <li><a href="disclaimer.html">Disclaimer</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="ft-btm">
+    <span>© <span id="yr">2026</span> Lottery Sambad Result.</span>
+    <span>Not affiliated with any government lottery department.</span>
+  </div>
+</div></footer>
+
+<script>window.PAGE_CONFIG = { draw: null, state: 'nagaland' };</script>
+<script src="app.js"></script>
+<script>
+(function(){
+  var SITE_BASE = 'https://harshsharmaoo7.github.io/Lottery-Bot/';
+  var RAW_BASE  = 'https://raw.githubusercontent.com/harshsharmaOO7/Lottery-Bot/main/';
+  var GD_VIEWER = 'https://docs.google.com/gview?embedded=true&url=';
+  var allItems  = [];
+  var filtered  = [];
+  var shown     = 0;
+  var PER_PAGE  = 20;
+
+  function pdfUrl(rec){
+    if(rec.pdf && rec.pdf.startsWith('http')) return rec.pdf;
+    if(rec.pdf) return RAW_BASE + rec.pdf;
+    return rec.pdf_url || '';
+  }
+  function fmtDate(d){
+    if(!d) return '';
+    var p = d.split('-');
+    if(p.length===3){
+      var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return p[2]+' '+m[parseInt(p[1])-1]+' '+p[0];
+    }
+    return d;
+  }
+
+  function buildItem(st, rec){
+    var pu = pdfUrl(rec);
+    var name = rec.draw_name || (st+' '+rec.draw);
+    var vClass = rec.verified ? 'green' : '';
+    var vText  = rec.verified ? '✓ Verified' : 'Unverified';
+    var dl = pu ? '<a class="btn btn-gold" href="'+pu+'" download style="padding:6px 12px;font-size:.75rem;">⬇ PDF</a>' : '';
+    var view = pu ?
+      '<a class="btn btn-blue" href="'+GD_VIEWER+encodeURIComponent(pu)+'" target="_blank" rel="noopener" style="padding:6px 12px;font-size:.75rem;">👁 View</a>' : '';
+    return '<div class="arch-item" data-state="'+st+'" data-draw="'+rec.draw+'">' +
+      '<div class="arch-info">' +
+        '<div class="arch-name">'+name+'</div>' +
+        '<div class="arch-meta">' +
+          '<span>'+fmtDate(rec.date)+'</span>' +
+          '<span>'+rec.draw+' Draw</span>' +
+          '<span class="arch-badge">'+st.toUpperCase()+'</span>' +
+          '<span class="arch-badge '+vClass+'">'+vText+'</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="arch-btns">'+dl+view+'</div>' +
+    '</div>';
+  }
+
+  function render(){
+    var list = document.getElementById('arch-list');
+    var noRes = document.getElementById('no-results');
+    var lm   = document.getElementById('load-more');
+    if(!filtered.length){
+      list.innerHTML = '';
+      if(noRes) noRes.style.display = 'block';
+      if(lm)    lm.style.display = 'none';
+      return;
+    }
+    if(noRes) noRes.style.display = 'none';
+    var chunk = filtered.slice(0, shown);
+    list.innerHTML = chunk.map(function(it){ return buildItem(it.st, it.rec); }).join('');
+    if(lm) lm.style.display = (shown < filtered.length) ? 'flex' : 'none';
+  }
+
+  window.filterResults = function(val, btn){
+    document.querySelectorAll('.filt-btn').forEach(function(b){ b.classList.remove('on'); });
+    btn.classList.add('on');
+    if(val === 'all'){
+      filtered = allItems.slice();
+    } else {
+      filtered = allItems.filter(function(it){
+        return it.st === val || it.rec.draw === val;
+      });
+    }
+    shown = PER_PAGE;
+    render();
+  };
+
+  window.loadMore = function(){
+    shown += PER_PAGE;
+    render();
+  };
+
+  fetch('results.json?v='+Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      document.getElementById('arch-loading').style.display = 'none';
+      allItems = [];
+      var states = ['nagaland','kerala'];
+      states.forEach(function(st){
+        (data[st]||[]).forEach(function(r){ allItems.push({st:st, rec:r}); });
+      });
+      // Sort newest first
+      allItems.sort(function(a,b){
+        return (b.rec.date+b.rec.draw) > (a.rec.date+a.rec.draw) ? 1 : -1;
+      });
+      var countEl = document.getElementById('total-count');
+      if(countEl) countEl.textContent = allItems.length + ' Results';
+      filtered = allItems.slice();
+      shown = PER_PAGE;
+      render();
+    })
+    .catch(function(err){
+      document.getElementById('arch-loading').innerHTML =
+        '<div class="err-box"><p>Could not load results. <button class="btn btn-blue" onclick="location.reload()">Retry</button></p></div>';
+    });
+})();
+</script>
+</body>
+</html>
