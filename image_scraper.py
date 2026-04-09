@@ -1,22 +1,35 @@
 """
 image_scraper.py — Lottery Result Image Scraper
-=================================================
-Scrapes result IMAGES (not numbers) from lottery result sites.
-Primary source: lotterysambadresult.in (WordPress site)
-Fallback  : Convert official PDF → image (if pdf2image available)
+================================================
+EXACT SCRAPER based on real HTML analysis of competitor sites.
 
-HOW IT WORKS:
-  lotterysambadresult.in uploads result images to WordPress.
-  Image URL pattern:
-    https://lotterysambadresult.in/wp-content/uploads/YYYY/MM/img_XXXX.webp
-  We find the latest result image, download it, and save it
-  to /images/ with an SEO-friendly filename.
+SOURCE 1: lotterysambadresult.in
+  ├─ Draw-specific pages:
+  │    1PM → /nagaland-state-lottery-sambad-today-result-1-pm.html
+  │    6PM → /nagaland-state-lottery-sambad-today-7-pm-result.html
+  │    8PM → /lottery-sambad-today-result-08-00-pm.html
+  │
+  ├─ Image location in HTML:
+  │    <figure class="aligncenter size-full">
+  │      <img src="...wp-content/uploads/YYYY/MM/img_HASH.webp"
+  │           alt="dear-lottery-sambad-8-pm-8-April-2026-winner-list"
+  │           fetchpriority="high">
+  │    </figure>
+  │
+  └─ Date verification via alt text:
+       alt contains "8-April-2026" → check if today
 
-REQUIREMENTS:
-  pip install requests beautifulsoup4 Pillow
-  (pdf2image optional — needs poppler-utils system package)
+SOURCE 2: lotterysambad.one
+  ├─ Draw-specific pages:
+  │    1PM → /nagaland-state-lottery-result-1-pm/
+  │    6PM → /nagaland-state-lottery-result-6-pm/
+  │    8PM → /nagaland-state-lottery-result-8-pm/
+  │
+  └─ Image location:
+       <meta property="og:image" content="...wp-content/uploads/YYYY/MM/NAME.jpeg"/>
+       Also: <img class="aligncenter size-full wp-image-..." fetchpriority="high">
 
-Author : Lottery Bot v2
+INSTALL: pip install requests beautifulsoup4 Pillow
 """
 
 import re
@@ -26,383 +39,455 @@ import logging
 import datetime
 import requests
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
-
-try:
-    from PIL import Image
-    PIL_OK = True
-except ImportError:
-    PIL_OK = False
-    logging.warning("Pillow not installed — image conversion disabled")
-
-try:
-    from pdf2image import convert_from_path
-    PDF2IMG_OK = True
-except ImportError:
-    PDF2IMG_OK = False
+from bs4 import BeautifulSoup
+from PIL import Image
 
 log = logging.getLogger("image_scraper")
 
-# ── Constants ─────────────────────────────────────────────────────────
+# ── Directories ───────────────────────────────────────────────────────
 IMAGE_DIR = Path("images")
-PDF_DIR   = Path("pdfs")
+IMAGE_DIR.mkdir(exist_ok=True)
 
+# ── Request config ────────────────────────────────────────────────────
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
+        "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8"
+    ),
     "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
     "Referer": "https://www.google.com/",
     "Connection": "keep-alive",
+    "Cache-Control": "no-cache",
 }
-TIMEOUT     = 20
-MAX_IMG_MB  = 10
-IMG_QUALITY = 85    # JPEG quality (1-95)
-IMG_MAX_W   = 1200  # max width in pixels
+IMG_HEADERS = {
+    "User-Agent": HEADERS["User-Agent"],
+    "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+    "Referer": "https://lotterysambadresult.in/",
+}
 
+TIMEOUT    = 20
+MAX_IMG_MB = 15
+IMG_QUALITY = 88
+IMG_MAX_W   = 1200
 
-def ensure_dirs():
-    IMAGE_DIR.mkdir(exist_ok=True)
-    PDF_DIR.mkdir(exist_ok=True)
-
+# ── IST helpers ───────────────────────────────────────────────────────
 
 def get_ist_now() -> datetime.datetime:
     return datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
 
 
-def make_seo_filename(state: str, draw: str, date_str: str) -> str:
-    """
-    SEO-friendly filename:
-    nagaland-state-lottery-sambad-result-today-8pm-2026-04-03
-    """
-    draw_slug  = draw.lower().replace(" ", "")
-    state_slug = state.lower().replace("_", "-").replace(" ", "-")
-    return f"{state_slug}-state-lottery-sambad-result-today-{draw_slug}-{date_str}"
+def ist_date_str() -> str:
+    return get_ist_now().strftime("%Y-%m-%d")
 
 
-def save_image(img_bytes: bytes, dest_path: Path) -> bool:
-    """Convert and save image bytes as optimized JPEG."""
-    if not PIL_OK:
-        # Save raw without processing
-        with open(dest_path, "wb") as f:
-            f.write(img_bytes)
-        log.info(f"Saved raw image: {dest_path} ({len(img_bytes)//1024} KB)")
+def ist_day_month() -> tuple[int, str]:
+    """Returns (day_int, 'April') for alt-text matching."""
+    n = get_ist_now()
+    months = ["January","February","March","April","May","June",
+              "July","August","September","October","November","December"]
+    return n.day, months[n.month - 1]
+
+
+def seo_slug(state: str, draw: str, date: str) -> str:
+    """nagaland-state-lottery-sambad-result-today-8pm-2026-04-09"""
+    return (
+        f"{state.lower().replace('_','-')}-state-lottery-"
+        f"sambad-result-today-{draw.lower()}-{date}"
+    )
+
+
+# ── HTML fetch ────────────────────────────────────────────────────────
+
+def fetch_page(url: str, retries: int = 3) -> BeautifulSoup | None:
+    """Fetch URL and return BeautifulSoup, with retries."""
+    for attempt in range(1, retries + 1):
+        try:
+            log.info(f"[Fetch {attempt}/{retries}] {url}")
+            r = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+            r.raise_for_status()
+            return BeautifulSoup(r.text, "html.parser")
+        except requests.exceptions.HTTPError as e:
+            log.warning(f"HTTP {e.response.status_code} from {url}")
+            if e.response.status_code in (403, 429):
+                time.sleep(5 * attempt)
+        except requests.exceptions.ConnectionError:
+            log.warning(f"Connection error: {url}")
+            time.sleep(3)
+        except requests.exceptions.Timeout:
+            log.warning(f"Timeout: {url}")
+            time.sleep(2)
+        except Exception as e:
+            log.warning(f"Unexpected: {e}")
+    return None
+
+
+# ── Image download & save ─────────────────────────────────────────────
+
+def download_and_save(img_url: str, dest: Path, referer: str = "") -> bool:
+    """Download image URL → save as optimized JPEG at dest."""
+    if dest.exists() and dest.stat().st_size > 10_000:
+        log.info(f"Image cached: {dest}")
         return True
+
+    headers = dict(IMG_HEADERS)
+    if referer:
+        headers["Referer"] = referer
+
     try:
-        img = Image.open(io.BytesIO(img_bytes))
-        # Convert RGBA / palette to RGB
-        if img.mode in ("RGBA", "P", "LA"):
-            bg = Image.new("RGB", img.size, (255, 255, 255))
-            if img.mode == "RGBA":
-                bg.paste(img, mask=img.split()[3])
-            else:
-                bg.paste(img)
-            img = bg
-        elif img.mode != "RGB":
-            img = img.convert("RGB")
-        # Resize if too large
-        if img.width > IMG_MAX_W:
-            ratio = IMG_MAX_W / img.width
-            img = img.resize((IMG_MAX_W, int(img.height * ratio)), Image.LANCZOS)
-        img.save(str(dest_path), "JPEG", quality=IMG_QUALITY, optimize=True)
-        log.info(f"✓ Image saved: {dest_path} ({dest_path.stat().st_size // 1024} KB)")
-        return True
-    except Exception as e:
-        log.error(f"Image save failed: {e}")
-        return False
-
-
-def download_image(url: str, dest_path: Path) -> bool:
-    """Download image from URL and save to dest_path."""
-    if dest_path.exists() and dest_path.stat().st_size > 5000:
-        log.info(f"Image already exists: {dest_path}")
-        return True
-    try:
-        log.info(f"Downloading image: {url}")
-        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, stream=True)
+        log.info(f"Downloading image: {img_url}")
+        r = requests.get(img_url, headers=headers, timeout=TIMEOUT, stream=True)
         r.raise_for_status()
+
         ct = r.headers.get("Content-Type", "")
-        if not any(x in ct.lower() for x in ["image", "jpeg", "png", "webp", "octet"]):
-            log.warning(f"Unexpected content-type: {ct} from {url}")
-        chunks = []
-        total  = 0
+        if not any(x in ct.lower() for x in ["image", "octet-stream"]):
+            log.warning(f"Bad Content-Type: {ct}")
+            return False
+
+        chunks, total = [], 0
         for chunk in r.iter_content(8192):
             if chunk:
                 chunks.append(chunk)
                 total += len(chunk)
                 if total > MAX_IMG_MB * 1024 * 1024:
-                    log.warning("Image too large — aborting download")
+                    log.warning("Image too large — aborting")
                     return False
-        img_bytes = b"".join(chunks)
-        return save_image(img_bytes, dest_path)
-    except requests.exceptions.RequestException as e:
-        log.error(f"Download failed for {url}: {e}")
+
+        raw = b"".join(chunks)
+        return _save_as_jpeg(raw, dest)
+
+    except Exception as e:
+        log.error(f"Download failed [{img_url}]: {e}")
         return False
 
 
-# ── SCRAPER 1: lotterysambadresult.in ────────────────────────────────
+def _save_as_jpeg(raw: bytes, dest: Path) -> bool:
+    """Convert raw image bytes → optimized JPEG."""
+    try:
+        img = Image.open(io.BytesIO(raw))
 
-def scrape_lotterysambad_result(draw: str) -> str | None:
+        # Normalize to RGB
+        if img.mode in ("RGBA", "P"):
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "RGBA":
+                bg.paste(img, mask=img.split()[3])
+            else:
+                bg.paste(img.convert("RGBA"), mask=img.convert("RGBA").split()[3])
+            img = bg
+        elif img.mode == "LA":
+            img = img.convert("RGB")
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Resize if too wide
+        if img.width > IMG_MAX_W:
+            ratio = IMG_MAX_W / img.width
+            img = img.resize((IMG_MAX_W, int(img.height * ratio)), Image.LANCZOS)
+
+        img.save(str(dest), "JPEG", quality=IMG_QUALITY, optimize=True)
+        log.info(f"✓ Saved: {dest} ({dest.stat().st_size // 1024} KB)")
+        return True
+
+    except Exception as e:
+        log.error(f"JPEG save failed: {e}")
+        return False
+
+
+# ════════════════════════════════════════════════════════════════
+#  SOURCE 1: lotterysambadresult.in
+#  ─────────────────────────────────────────────────────────────
+#  HTML pattern confirmed:
+#  <figure class="aligncenter size-full">
+#    <img src="...wp-content/uploads/YYYY/MM/img_HASH.webp"
+#         alt="dear-lottery-sambad-8-pm-8-April-2026-winner-list"
+#         fetchpriority="high">
+#  </figure>
+# ════════════════════════════════════════════════════════════════
+
+SITE1_BASE = "https://lotterysambadresult.in"
+SITE1_DRAW_PAGES = {
+    "1PM": f"{SITE1_BASE}/nagaland-state-lottery-sambad-today-result-1-pm.html",
+    "6PM": f"{SITE1_BASE}/nagaland-state-lottery-sambad-today-7-pm-result.html",
+    "8PM": f"{SITE1_BASE}/lottery-sambad-today-result-08-00-pm.html",
+}
+
+def scrape_site1(draw: str) -> str | None:
     """
-    Scrape https://lotterysambadresult.in/ for the latest result image.
+    Scrape lotterysambadresult.in for the result image.
 
-    This WordPress site uploads result images to:
-      /wp-content/uploads/YYYY/MM/img_XXXXXXXX.webp
-
-    The site has separate pages per draw:
-      1PM: /nagaland-state-lottery-sambad-today-result-1-pm.html
-      6PM: /nagaland-state-lottery-sambad-today-7-pm-result.html
-      8PM: /lottery-sambad-today-result-08-00-pm.html
-
-    Returns the image URL or None.
+    Strategy (in order):
+    1. Target draw-specific page → find <figure class="aligncenter size-full"> img
+    2. Cross-verify via alt text (contains today's date)
+    3. Homepage fallback
+    4. og:image fallback
     """
-    DRAW_URLS = {
-        "1PM": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-result-1-pm.html",
-        "6PM": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-7-pm-result.html",
-        "8PM": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
-    }
+    day, month = ist_day_month()
+    today_in_alt = f"{day}-{month}-{get_ist_now().year}"  # e.g. "8-April-2026"
 
-    # Also try the homepage
-    URLS_TO_TRY = [
-        DRAW_URLS.get(draw, "https://lotterysambadresult.in/"),
-        "https://lotterysambadresult.in/",
-    ]
+    pages_to_try = [SITE1_DRAW_PAGES.get(draw, SITE1_BASE), SITE1_BASE]
 
-    for url in URLS_TO_TRY:
-        img_url = _extract_wp_image(url, draw)
-        if img_url:
-            return img_url
-        time.sleep(1)
+    for page_url in pages_to_try:
+        soup = fetch_page(page_url)
+        if not soup:
+            continue
+
+        # ── Strategy 1: <figure class="aligncenter size-full"> img ──
+        figure = soup.find("figure", class_=lambda c: c and "aligncenter" in c and "size-full" in c)
+        if figure:
+            img_tag = figure.find("img")
+            if img_tag:
+                src = img_tag.get("src", "")
+                alt = img_tag.get("alt", "").lower()
+                log.info(f"[site1] figure img: {src}")
+                log.info(f"[site1] alt text  : {alt}")
+
+                # Verify it's today's image via alt text
+                if src and "wp-content/uploads" in src:
+                    if today_in_alt.lower() in alt or _alt_matches_today(alt):
+                        log.info(f"[site1] ✓ Date match in alt: {alt}")
+                        return src
+                    else:
+                        log.warning(f"[site1] Alt date mismatch. Expected '{today_in_alt}', got '{alt}'")
+                        # Still return it — might be most recent even if slightly old
+                        if src:
+                            return src
+
+        # ── Strategy 2: fetchpriority="high" img in wp-content/uploads ──
+        high_imgs = soup.find_all("img", attrs={"fetchpriority": "high"})
+        for img in high_imgs:
+            src = img.get("src", "")
+            if "wp-content/uploads" in src and ".webp" in src.lower():
+                alt = img.get("alt", "").lower()
+                log.info(f"[site1] fetchpriority img: {src}")
+                if any(kw in alt for kw in ["sambad", "lottery", "dear", "result"]):
+                    return src
+
+        # ── Strategy 3: og:image ──
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            src = og["content"]
+            if "wp-content/uploads" in src:
+                log.info(f"[site1] og:image: {src}")
+                return src
+
+        # ── Strategy 4: Any large wp-content img ──
+        for img in soup.find_all("img", src=True):
+            src = img.get("src", "")
+            if "wp-content/uploads" not in src:
+                continue
+            # Skip thumbnails (-150x150, -300x200 etc.)
+            if re.search(r"-\d{2,3}x\d{2,3}\.", src):
+                continue
+            # Skip logos, icons
+            if any(x in src.lower() for x in ["logo", "icon", "avatar", "banner"]):
+                continue
+            alt = img.get("alt", "").lower()
+            if any(kw in alt for kw in ["sambad", "lottery", "result", "dear", "winner"]):
+                log.info(f"[site1] fallback img: {src}")
+                return src
+
+        time.sleep(1.5)
 
     return None
 
 
-def _extract_wp_image(page_url: str, draw: str) -> str | None:
+def _alt_matches_today(alt: str) -> bool:
+    """Check if alt text date matches today (handles various formats)."""
+    n   = get_ist_now()
+    day = str(n.day)
+    yr  = str(n.year)
+    months = ["january","february","march","april","may","june",
+              "july","august","september","october","november","december"]
+    month = months[n.month - 1]
+    return day in alt and month in alt and yr in alt
+
+
+# ════════════════════════════════════════════════════════════════
+#  SOURCE 2: lotterysambad.one
+#  ─────────────────────────────────────────────────────────────
+#  HTML pattern confirmed:
+#  <meta property="og:image"
+#        content="...wp-content/uploads/2026/04/mn84_1.jpeg"/>
+#  Also: <img class="aligncenter size-full wp-image-..." fetchpriority="high">
+# ════════════════════════════════════════════════════════════════
+
+SITE2_BASE = "https://lotterysambad.one"
+SITE2_DRAW_PAGES = {
+    "1PM": f"{SITE2_BASE}/nagaland-state-lottery-result-1-pm/",
+    "6PM": f"{SITE2_BASE}/nagaland-state-lottery-result-6-pm/",
+    "8PM": f"{SITE2_BASE}/nagaland-state-lottery-result-8-pm/",
+}
+
+def scrape_site2(draw: str) -> str | None:
     """
-    Extract the result image from a WordPress lottery page.
-    Looks for:
-      1. <img> with src containing wp-content/uploads
-      2. <img> with class containing 'result' or 'lottery'
-      3. Large images (width > 400px from width attribute)
-      4. og:image meta tag
+    Scrape lotterysambad.one for the result image.
+
+    Strategy:
+    1. Draw-specific page → og:image meta (MOST RELIABLE — Yoast SEO sets this)
+    2. fetchpriority="high" img with wp-image class
+    3. Homepage og:image
     """
-    from bs4 import BeautifulSoup
+    pages_to_try = [SITE2_DRAW_PAGES.get(draw, SITE2_BASE), SITE2_BASE]
 
-    try:
-        log.info(f"Scanning page: {page_url}")
-        r = requests.get(page_url, headers=HEADERS, timeout=TIMEOUT)
-        r.raise_for_status()
-        soup = BeautifulSoup(r.text, "html.parser")
-    except Exception as e:
-        log.warning(f"Page fetch failed {page_url}: {e}")
-        return None
-
-    candidates = []
-
-    # ── Strategy 1: og:image (most reliable on WordPress) ──
-    og = soup.find("meta", property="og:image")
-    if og and og.get("content"):
-        src = og["content"]
-        if "wp-content/uploads" in src or any(x in src for x in ["result", "lottery", "sambad"]):
-            log.info(f"Found og:image: {src}")
-            candidates.append((10, src))
-
-    # ── Strategy 2: img tags with wp-content/uploads ──
-    for img in soup.find_all("img", src=True):
-        src = img.get("src", "")
-        if "wp-content/uploads" not in src:
+    for page_url in pages_to_try:
+        soup = fetch_page(page_url)
+        if not soup:
             continue
-        src = urljoin(page_url, src)
 
-        score = 0
-        # Prefer images with result-related names
-        src_lower = src.lower()
-        if any(x in src_lower for x in ["result", "lottery", "sambad", "dear", "img_"]):
-            score += 5
-        # Prefer webp / jpg (not thumbnails)
-        if any(x in src_lower for x in [".webp", ".jpg", ".jpeg"]):
-            score += 3
-        # Prefer NOT tiny thumbnails (-150x150, -300x)
-        if re.search(r'-\d{2,3}x\d{2,3}\.', src_lower):
-            score -= 5
-        # Width/height attributes hint at image size
-        w = img.get("width", "0")
-        try:
-            w = int(str(w).replace("px", ""))
-            if w > 400: score += 4
-            if w > 700: score += 3
-        except ValueError:
-            pass
-        # Prefer images near "result" headings
-        parent = img.find_parent(["div", "section", "article"])
-        if parent:
-            txt = parent.get_text().lower()
-            if any(x in txt for x in ["result", "draw", "prize", "winner"]):
-                score += 3
+        # ── Strategy 1: og:image (Yoast SEO always sets this = post featured image) ──
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            src = og["content"]
+            if "wp-content/uploads" in src:
+                log.info(f"[site2] og:image: {src}")
+                return src
 
-        if score > 0:
-            candidates.append((score, src))
+        # ── Strategy 2: twitter:image ──
+        tw = soup.find("meta", attrs={"name": "twitter:image"}) or \
+             soup.find("meta", property="twitter:image")
+        if tw and tw.get("content"):
+            src = tw["content"]
+            if "wp-content/uploads" in src:
+                log.info(f"[site2] twitter:image: {src}")
+                return src
 
-    # ── Strategy 3: data-src (lazy loaded images) ──
-    for img in soup.find_all("img", attrs={"data-src": True}):
-        src = img.get("data-src", "")
-        if "wp-content/uploads" in src:
-            src = urljoin(page_url, src)
-            candidates.append((2, src))
-    for img in soup.find_all("img", attrs={"data-lazy-src": True}):
-        src = img.get("data-lazy-src", "")
-        if "wp-content/uploads" in src:
-            src = urljoin(page_url, src)
-            candidates.append((2, src))
+        # ── Strategy 3: img with fetchpriority="high" and wp-image class ──
+        for img in soup.find_all("img", attrs={"fetchpriority": "high"}):
+            src   = img.get("src", "")
+            cls   = " ".join(img.get("class", []))
+            if "wp-content/uploads" in src and "wp-image" in cls:
+                # Skip thumbnails
+                if not re.search(r"-\d{2,3}x\d{2,3}\.", src):
+                    log.info(f"[site2] fetchpriority wp-image: {src}")
+                    return src
 
-    # ── Strategy 4: srcset attribute ──
-    for img in soup.find_all("img", attrs={"srcset": True}):
-        srcset = img.get("srcset", "")
-        parts = [p.strip().split()[0] for p in srcset.split(",") if p.strip()]
-        for src in parts:
-            if "wp-content/uploads" in src and not re.search(r'-\d{2,3}x\d{2,3}\.', src):
-                src = urljoin(page_url, src)
-                candidates.append((1, src))
+        # ── Strategy 4: Any large upload image ──
+        for img in soup.find_all("img", src=lambda s: s and "wp-content/uploads" in s):
+            src = img.get("src", "")
+            if re.search(r"-\d{2,3}x\d{2,3}\.", src):
+                continue
+            alt = img.get("alt", "").lower()
+            if any(kw in alt for kw in ["result", "lottery", "sambad", "nagaland"]):
+                log.info(f"[site2] fallback: {src}")
+                return src
 
-    if not candidates:
-        log.warning(f"No image candidates found on {page_url}")
-        return None
+        time.sleep(1.5)
 
-    # Sort by score, take best
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    best_score, best_url = candidates[0]
-    log.info(f"Best image candidate (score={best_score}): {best_url}")
-    return best_url
+    return None
 
 
-# ── SCRAPER 2: lotterysambad.one ─────────────────────────────────────
-
-def scrape_lotterysambad_one(draw: str) -> str | None:
-    """
-    Scrape https://lotterysambad.one/ as alternate source.
-    Similar WordPress pattern.
-    """
-    DRAW_URLS = {
-        "1PM": "https://lotterysambad.one/",
-        "6PM": "https://lotterysambad.one/",
-        "8PM": "https://lotterysambad.one/",
-    }
-    url = DRAW_URLS.get(draw, "https://lotterysambad.one/")
-    return _extract_wp_image(url, draw)
-
-
-# ── FALLBACK: PDF → Image ─────────────────────────────────────────────
-
-def pdf_to_image_fallback(pdf_path: Path, dest_path: Path) -> bool:
-    """
-    Convert first page of a PDF to image.
-    Requires: pip install pdf2image + apt install poppler-utils
-    """
-    if not PDF2IMG_OK:
-        log.warning("pdf2image not available — cannot convert PDF to image")
-        return False
-    if not pdf_path.exists():
-        log.warning(f"PDF not found: {pdf_path}")
-        return False
-    if dest_path.exists() and dest_path.stat().st_size > 5000:
-        return True
-    try:
-        pages = convert_from_path(str(pdf_path), dpi=150, first_page=1, last_page=1, fmt="jpeg")
-        if pages:
-            img = pages[0]
-            if img.width > IMG_MAX_W:
-                ratio = IMG_MAX_W / img.width
-                img = img.resize((IMG_MAX_W, int(img.height * ratio)), Image.LANCZOS)
-            img.save(str(dest_path), "JPEG", quality=IMG_QUALITY, optimize=True)
-            log.info(f"✓ PDF→Image: {dest_path}")
-            return True
-    except Exception as e:
-        log.error(f"PDF conversion failed: {e}")
-    return False
-
-
-# ── PUBLIC API ────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+#  MAIN PUBLIC API
+# ════════════════════════════════════════════════════════════════
 
 def get_result_image(
-    state:    str,
-    draw:     str,
+    state:    str = "nagaland",
+    draw:     str = "8PM",
     date_str: str | None = None,
-    pdf_path: Path | None = None,
 ) -> str:
     """
-    Main entry point. Returns local image path (relative) or "" if all fail.
+    Fetch today's lottery result image.
 
     Priority order:
-      1. lotterysambadresult.in (most reliable, updates fastest)
-      2. lotterysambad.one (fallback site)
-      3. PDF → image conversion (if PDF already downloaded)
+      1. lotterysambadresult.in (updates fastest, most consistent HTML)
+      2. lotterysambad.one      (og:image via Yoast — very reliable)
 
-    Args:
-        state:    "nagaland" | "kerala"
-        draw:     "1PM" | "6PM" | "8PM" | "3PM"
-        date_str: "YYYY-MM-DD" (defaults to today IST)
-        pdf_path: Path to already-downloaded PDF (for fallback)
-
-    Returns:
-        Relative path to saved image like "images/nagaland-state-lottery-...jpg"
-        or "" if image could not be obtained.
+    Returns local path like "images/nagaland-state-...-8pm-2026-04-09.jpg"
+    or "" if both sources fail.
     """
-    ensure_dirs()
-
     if date_str is None:
-        date_str = get_ist_now().strftime("%Y-%m-%d")
+        date_str = ist_date_str()
 
-    slug      = make_seo_filename(state, draw, date_str)
-    dest_path = IMAGE_DIR / f"{slug}.jpg"
+    slug = seo_slug(state, draw, date_str)
+    dest = IMAGE_DIR / f"{slug}.jpg"
 
-    # Already have it?
-    if dest_path.exists() and dest_path.stat().st_size > 5000:
-        log.info(f"Image already exists: {dest_path}")
-        return str(dest_path).replace("\\", "/")
+    # Already downloaded today
+    if dest.exists() and dest.stat().st_size > 10_000:
+        log.info(f"Using cached image: {dest}")
+        return str(dest).replace("\\", "/")
 
-    # ── Source 1: lotterysambadresult.in ──
+    # ── Attempt 1: lotterysambadresult.in ──
     if state == "nagaland":
-        log.info(f"[Image] Trying lotterysambadresult.in for {draw}...")
-        img_url = scrape_lotterysambad_result(draw)
-        if img_url and download_image(img_url, dest_path):
-            return str(dest_path).replace("\\", "/")
+        log.info(f"[Source 1] lotterysambadresult.in → {draw}")
+        img_url = scrape_site1(draw)
+        if img_url:
+            referer = SITE1_DRAW_PAGES.get(draw, SITE1_BASE)
+            if download_and_save(img_url, dest, referer=referer):
+                log.info(f"✅ Image from site1: {dest}")
+                return str(dest).replace("\\", "/")
+            else:
+                log.warning("Site1 image download failed")
+        else:
+            log.warning("Site1: no image URL found")
+
         time.sleep(2)
 
-        # ── Source 2: lotterysambad.one ──
-        log.info("[Image] Trying lotterysambad.one...")
-        img_url = scrape_lotterysambad_one(draw)
-        if img_url and download_image(img_url, dest_path):
-            return str(dest_path).replace("\\", "/")
+        # ── Attempt 2: lotterysambad.one ──
+        log.info(f"[Source 2] lotterysambad.one → {draw}")
+        img_url = scrape_site2(draw)
+        if img_url:
+            referer = SITE2_DRAW_PAGES.get(draw, SITE2_BASE)
+            # Update referer header for site2
+            global IMG_HEADERS
+            IMG_HEADERS["Referer"] = referer
+            if download_and_save(img_url, dest, referer=referer):
+                log.info(f"✅ Image from site2: {dest}")
+                return str(dest).replace("\\", "/")
+            else:
+                log.warning("Site2 image download failed")
+        else:
+            log.warning("Site2: no image URL found")
 
-    # ── Source 3: PDF → image fallback ──
-    if pdf_path and pdf_path.exists():
-        log.info(f"[Image] Trying PDF→image conversion: {pdf_path}")
-        if pdf_to_image_fallback(pdf_path, dest_path):
-            return str(dest_path).replace("\\", "/")
-
-    log.warning(f"[Image] All sources failed for {state} {draw} {date_str}")
+    log.warning(f"❌ All image sources failed for {state} {draw} {date_str}")
     return ""
 
 
-# ── STANDALONE TEST ───────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+#  STANDALONE TEST RUNNER
+# ════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     import sys
+
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s"
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
     )
 
-    draw = sys.argv[1] if len(sys.argv) > 1 else "8PM"
-    print(f"\nTesting image scraper for Nagaland {draw}...\n")
+    draw = sys.argv[1].upper() if len(sys.argv) > 1 else "8PM"
+    if draw not in ("1PM", "6PM", "8PM"):
+        print("Usage: python image_scraper.py [1PM|6PM|8PM]")
+        sys.exit(1)
+
+    print(f"\n{'='*50}")
+    print(f"  Lottery Image Scraper — {draw}")
+    print(f"  IST Date : {ist_date_str()}")
+    print(f"{'='*50}\n")
 
     result = get_result_image("nagaland", draw)
-    if result:
-        print(f"\n✅ SUCCESS: {result}")
-    else:
-        print("\n❌ FAILED: No image obtained from any source")
 
-    print("\nDone.")
+    print(f"\n{'='*50}")
+    if result:
+        print(f"  ✅ SUCCESS")
+        print(f"  Saved to : {result}")
+        # Show image info
+        try:
+            img = Image.open(result)
+            print(f"  Size     : {img.width}×{img.height} px")
+            import os
+            print(f"  File size: {os.path.getsize(result) // 1024} KB")
+        except Exception:
+            pass
+    else:
+        print("  ❌ FAILED — No image obtained")
+        print("\n  Possible reasons:")
+        print("  • Both sites blocked the request (try again later)")
+        print("  • Result not yet published (check after draw time)")
+        print("  • Site structure changed (check HTML manually)")
+    print(f"{'='*50}\n")
