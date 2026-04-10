@@ -1,37 +1,40 @@
 /**
- * app.js — Shared JS for all lottery pages
- * ─────────────────────────────────────────
- * KEY FEATURES:
- *  • cache-bust fetch (fixes stale date bug)
- *  • Shows OLD result with banner if today's not available yet
- *  • Auto-refresh every 5 min near draw times, 10 min otherwise
+ * app.js — Lottery Result Frontend (Image-Only System)
+ * ─────────────────────────────────────────────────────
+ * Changes from old version:
+ *  • PDF section completely removed
+ *  • Image loads directly from source URL (no RAW_BASE needed)
+ *  • Old result banner when today's result not yet available
+ *  • Cache-bust on every fetch (fixes stale date bug)
  *  • Countdown timer to next draw
+ *  • Auto-refresh every 5 min near draw times
  */
 (function () {
   'use strict';
 
-  // ── UPDATE THESE ────────────────────────────────────────────
+  // ── UPDATE THIS ────────────────────────────────────────────
   var SITE_BASE = 'https://harshsharmaoo7.github.io/Lottery-Bot/';
-  var RAW_BASE  = 'https://raw.githubusercontent.com/harshsharmaOO7/Lottery-Bot/main/';
-  // ────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────
 
-  var JSON_URL  = SITE_BASE + 'results.json';
-  var GD_VIEW   = 'https://docs.google.com/gview?embedded=true&url=';
-  var CFG       = window.PAGE_CONFIG || { draw: null, state: 'nagaland' };
+  var JSON_URL = SITE_BASE + 'results.json';
+  var CFG      = window.PAGE_CONFIG || { draw: null, state: 'nagaland' };
 
   // ── IST helpers ──────────────────────────────────────────────
   function istNow() {
-    var d = new Date();
-    // IST = UTC + 5:30
-    var utc = d.getTime() + d.getTimezoneOffset() * 60000;
-    return new Date(utc + 19800000); // 5.5 * 3600 * 1000
+    return new Date(new Date().getTime() + (5.5 * 3600 * 1000) + new Date().getTimezoneOffset() * 60000);
   }
   function istDateStr() {
     var n = istNow();
-    var y = n.getFullYear();
-    var m = String(n.getMonth() + 1).padStart(2, '0');
-    var d = String(n.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
+    return n.getFullYear() + '-' +
+      String(n.getMonth()+1).padStart(2,'0') + '-' +
+      String(n.getDate()).padStart(2,'0');
+  }
+  function fmtDate(s) {
+    if (!s) return '';
+    var p = s.split('-');
+    if (p.length !== 3) return s;
+    var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return parseInt(p[2]) + ' ' + m[parseInt(p[1])-1] + ' ' + p[0];
   }
   function detectDraw() {
     var h = istNow().getHours();
@@ -39,31 +42,22 @@
     else if (h < 18) return '6PM';
     else             return '8PM';
   }
-  function fmtDate(s) {
-    if (!s) return '';
-    var p = s.split('-');
-    if (p.length !== 3) return s;
-    var months = ['Jan','Feb','Mar','Apr','May','Jun',
-                  'Jul','Aug','Sep','Oct','Nov','Dec'];
-    return parseInt(p[2]) + ' ' + months[parseInt(p[1]) - 1] + ' ' + p[0];
-  }
 
-  // ── Live clock ───────────────────────────────────────────────
+  // ── Live IST clock ───────────────────────────────────────────
   function tick() {
     var el = document.getElementById('clock');
     if (!el) return;
-    var n   = istNow();
-    var hh  = String(n.getHours()).padStart(2, '0');
-    var mm  = String(n.getMinutes()).padStart(2, '0');
-    var ss  = String(n.getSeconds()).padStart(2, '0');
-    var ampm = n.getHours() < 12 ? 'AM' : 'PM';
-    var h12 = n.getHours() % 12 || 12;
-    el.textContent = h12 + ':' + mm + ':' + ss + ' ' + ampm + ' IST';
+    var n = istNow();
+    var h = n.getHours(), mi = n.getMinutes(), s = n.getSeconds();
+    var ampm = h < 12 ? 'AM' : 'PM';
+    var h12  = h % 12 || 12;
+    el.textContent = h12 + ':' + String(mi).padStart(2,'0') + ':' +
+      String(s).padStart(2,'0') + ' ' + ampm + ' IST';
   }
   tick();
   setInterval(tick, 1000);
-  var yrEl = document.getElementById('yr');
-  if (yrEl) yrEl.textContent = new Date().getFullYear();
+  var yr = document.getElementById('yr');
+  if (yr) yr.textContent = new Date().getFullYear();
 
   // ── Dark mode ────────────────────────────────────────────────
   var root = document.documentElement;
@@ -76,162 +70,108 @@
   }
   applyTheme();
   var tb = document.getElementById('themeBtn');
-  if (tb) tb.addEventListener('click', function () {
+  if (tb) tb.addEventListener('click', function(){
     dark = !dark;
     localStorage.setItem('theme', dark ? 'dark' : 'light');
     applyTheme();
   });
 
-  // ── Hamburger ────────────────────────────────────────────────
-  var ham = document.getElementById('hamBtn');
+  // ── Hamburger ─────────────────────────────────────────────────
+  var ham  = document.getElementById('hamBtn');
   var mnav = document.getElementById('mnav');
   var mov  = document.getElementById('moverlay');
-  function closeNav() {
-    if (mnav) mnav.classList.remove('open');
-    if (mov)  mov.classList.remove('open');
-    if (ham)  { ham.classList.remove('open'); ham.setAttribute('aria-expanded','false'); }
+  function closeNav(){
+    if(mnav) mnav.classList.remove('open');
+    if(mov)  mov.classList.remove('open');
+    if(ham){ ham.classList.remove('open'); ham.setAttribute('aria-expanded','false'); }
   }
   window.closeNav = closeNav;
-  if (ham && mnav) {
-    ham.addEventListener('click', function () {
+  if(ham && mnav){
+    ham.addEventListener('click', function(){
       var o = mnav.classList.toggle('open');
-      if (mov) mov.classList.toggle('open', o);
+      if(mov) mov.classList.toggle('open', o);
       ham.classList.toggle('open', o);
       ham.setAttribute('aria-expanded', o ? 'true' : 'false');
     });
   }
 
-  // ── Tabs / FAQ ───────────────────────────────────────────────
-  window.showTab = function (id, btn) {
-    document.querySelectorAll('.tabpanel').forEach(function (p) { p.classList.remove('on'); });
-    document.querySelectorAll('.tabbt').forEach(function (b) { b.classList.remove('on'); b.setAttribute('aria-selected','false'); });
+  // ── Tabs / FAQ ────────────────────────────────────────────────
+  window.showTab = function(id, btn){
+    document.querySelectorAll('.tabpanel').forEach(function(p){ p.classList.remove('on'); });
+    document.querySelectorAll('.tabbt').forEach(function(b){
+      b.classList.remove('on'); b.setAttribute('aria-selected','false');
+    });
     var p = document.getElementById(id);
-    if (p) p.classList.add('on');
-    if (btn) { btn.classList.add('on'); btn.setAttribute('aria-selected','true'); }
+    if(p) p.classList.add('on');
+    if(btn){ btn.classList.add('on'); btn.setAttribute('aria-selected','true'); }
   };
-  window.faqToggle = function (id) {
+  window.faqToggle = function(id){
     var el = document.getElementById(id);
-    if (!el) return;
+    if(!el) return;
     var o = el.classList.toggle('open');
     var q = el.querySelector('.faq-q');
-    if (q) q.setAttribute('aria-expanded', o ? 'true' : 'false');
+    if(q) q.setAttribute('aria-expanded', o ? 'true' : 'false');
   };
 
-  // ── Today row in tables ──────────────────────────────────────
+  // ── Today row highlight in schedule tables ─────────────────────
   var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var todayName = days[istNow().getDay()];
-  document.querySelectorAll('table tbody tr').forEach(function (row) {
+  document.querySelectorAll('table tbody tr').forEach(function(row){
     var td = row.querySelector('td');
-    if (td && td.textContent.trim() === todayName) row.classList.add('tod');
+    if(td && td.textContent.trim() === todayName) row.classList.add('tod');
   });
 
-  // ── URL builders ─────────────────────────────────────────────
-  function pdfUrl(rec) {
-    if (!rec) return '';
-    if (rec.pdf && rec.pdf.startsWith('http'))    return rec.pdf;
-    if (rec.pdf && rec.pdf.length > 3)            return RAW_BASE + rec.pdf;
-    if (rec.pdf_url)                              return rec.pdf_url;
-    return '';
-  }
-  function imgUrl(rec) {
-    if (!rec) return '';
-    if (rec.image && rec.image.startsWith('http')) return rec.image;
-    if (rec.image && rec.image.length > 3)         return RAW_BASE + rec.image;
-    return '';
-  }
-
-  // ── PDF / image callbacks ────────────────────────────────────
-  window.pdfLoaded = function () {
-    var l = document.getElementById('pdf-load');
-    var f = document.getElementById('pdf-frame');
-    if (l) l.style.display = 'none';
-    if (f) f.style.display = 'block';
-  };
-  window.pdfFail = function () {
-    var l = document.getElementById('pdf-load');
-    var f = document.getElementById('pdf-frame');
-    var e = document.getElementById('pdf-err');
-    if (l) l.style.display = 'none';
-    if (f) f.style.display = 'none';
-    if (e) e.style.display = 'block';
-  };
-  window.imgFail = function (img) {
-    img.style.display = 'none';
-    var skel = document.getElementById('img-skel');
-    if (skel) skel.style.display = 'none';
-    var wrap = document.getElementById('img-wrap');
-    if (wrap) {
-      var ph = wrap.querySelector('.img-placeholder');
-      if (!ph) {
-        ph = document.createElement('div');
-        ph.className = 'img-placeholder';
-        ph.style.cssText = 'padding:40px;text-align:center;color:var(--muted);font-size:.85rem;';
-        ph.innerHTML = '📄 Result image not yet available.<br>Please check after draw time.';
-        wrap.appendChild(ph);
-      }
-    }
-  };
-  window.shareResult = function () {
-    if (navigator.share) {
-      navigator.share({ title: document.title, url: location.href }).catch(function(){});
-    } else if (navigator.clipboard) {
+  // ── Share ─────────────────────────────────────────────────────
+  window.shareResult = function(){
+    if(navigator.share){
+      navigator.share({title: document.title, url: location.href}).catch(function(){});
+    } else if(navigator.clipboard){
       navigator.clipboard.writeText(location.href).then(function(){ alert('Link copied!'); });
     } else { prompt('Copy:', location.href); }
   };
 
   // ════════════════════════════════════════════════════════════
-  //  STATUS BANNER — shown when displaying old result
+  //  OLD RESULT BANNER
+  //  Jab tak aaj ka result nahi aata, purana dikhao + banner
   // ════════════════════════════════════════════════════════════
   function showOldBanner(rec, draw) {
-    var existing = document.getElementById('old-result-banner');
-    if (existing) existing.remove();
+    var old = document.getElementById('old-result-banner');
+    if(old) old.remove();
 
     var card = document.getElementById('result-card');
-    if (!card) return;
+    if(!card) return;
 
-    var n   = istNow();
-    var h   = n.getHours();
-    var min = n.getMinutes();
-
-    // Next draw time
-    var nextDraw = '', nextTime = '';
-    if (h < 13)       { nextDraw = '1PM';  nextTime = '1:00 PM'; }
-    else if (h < 18)  { nextDraw = '6PM';  nextTime = '6:00 PM'; }
-    else if (h < 20)  { nextDraw = '8PM';  nextTime = '8:00 PM'; }
-    else              { nextDraw = '1PM';  nextTime = 'Tomorrow 1:00 PM'; }
+    // Calculate next draw time
+    var h = istNow().getHours();
+    var nextLabel = h < 13 ? '1:00 PM' : h < 18 ? '6:00 PM' : h < 20 ? '8:00 PM' : 'Tomorrow 1:00 PM';
 
     var banner = document.createElement('div');
-    banner.id = 'old-result-banner';
-    banner.style.cssText = [
-      'background:linear-gradient(135deg,#f59e0b,#d97706)',
-      'color:#1a1a1a',
-      'padding:12px 20px',
-      'display:flex',
-      'align-items:center',
-      'justify-content:space-between',
-      'flex-wrap:wrap',
-      'gap:8px',
-      'font-size:.82rem',
-      'font-weight:600',
-    ].join(';');
+    banner.id  = 'old-result-banner';
+    banner.style.cssText =
+      'background:linear-gradient(135deg,#f59e0b,#d97706);' +
+      'color:#1a1a1a;padding:12px 16px;display:flex;' +
+      'align-items:flex-start;justify-content:space-between;' +
+      'gap:10px;flex-wrap:wrap;font-size:.82rem;font-weight:600;';
 
     banner.innerHTML =
-      '<span style="display:flex;align-items:center;gap:8px;">' +
-        '⏳ <span>Showing last available result — ' + fmtDate(rec.date) + ' ' + rec.draw +
-        '. <strong>' + draw + '</strong> result will appear after ' + nextTime + '.</span>' +
-      '</span>' +
+      '<div style="display:flex;align-items:flex-start;gap:8px;flex:1;">' +
+        '<span style="font-size:1.1rem;flex-shrink:0;">⏳</span>' +
+        '<span><strong>' + draw + ' result abhi available nahi hai.</strong><br>' +
+        'Showing last result: <strong>' + fmtDate(rec.date) + ' ' + rec.draw + '</strong>.<br>' +
+        'Naya result ' + nextLabel + ' ke baad update hoga.</span>' +
+      '</div>' +
       '<button onclick="location.reload()" style="' +
-        'background:#fff;color:#1a1a1a;border:none;padding:4px 12px;' +
-        'border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;">' +
-        '🔄 Refresh' +
-      '</button>';
+        'background:#fff;color:#1a1a1a;border:none;padding:5px 14px;' +
+        'border-radius:20px;font-size:.78rem;font-weight:700;cursor:pointer;' +
+        'flex-shrink:0;margin-top:2px;">🔄 Refresh</button>';
 
+    // Insert at top of card (before card-hdr)
     card.insertBefore(banner, card.firstChild);
   }
 
-  function removeBanner() {
+  function clearBanner() {
     var b = document.getElementById('old-result-banner');
-    if (b) b.remove();
+    if(b) b.remove();
   }
 
   // ════════════════════════════════════════════════════════════
@@ -239,40 +179,30 @@
   // ════════════════════════════════════════════════════════════
   function startCountdown() {
     var el = document.getElementById('countdown');
-    if (!el) return;
+    if(!el) return;
 
-    function update() {
-      var n = istNow();
-      var h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
-
+    function update(){
+      var n   = istNow();
+      var sec = n.getHours()*3600 + n.getMinutes()*60 + n.getSeconds();
       var targets = [
-        { label: '1PM draw', h: 13, m: 0 },
-        { label: '6PM draw', h: 18, m: 0 },
-        { label: '8PM draw', h: 20, m: 0 },
+        {label:'1PM draw', s:13*3600},
+        {label:'6PM draw', s:18*3600},
+        {label:'8PM draw', s:20*3600},
       ];
-
-      var nowSec = h * 3600 + m * 60 + s;
-      var next   = null;
-
-      for (var i = 0; i < targets.length; i++) {
-        var targetSec = targets[i].h * 3600 + targets[i].m * 60;
-        if (targetSec > nowSec) { next = targets[i]; next.sec = targetSec; break; }
+      var next = null;
+      for(var i=0; i<targets.length; i++){
+        if(targets[i].s > sec){ next = targets[i]; break; }
       }
+      if(!next){ el.textContent = 'All draws done for today ✓'; return; }
 
-      if (!next) {
-        el.textContent = 'All draws done for today';
-        return;
-      }
-
-      var diff = next.sec - nowSec;
-      var dh   = Math.floor(diff / 3600);
-      var dm   = Math.floor((diff % 3600) / 60);
-      var ds   = diff % 60;
-
+      var diff = next.s - sec;
+      var hh   = Math.floor(diff/3600);
+      var mm   = Math.floor((diff%3600)/60);
+      var ss   = diff%60;
       el.textContent = 'Next: ' + next.label + ' in ' +
-        (dh > 0 ? dh + 'h ' : '') +
-        String(dm).padStart(2,'0') + 'm ' +
-        String(ds).padStart(2,'0') + 's';
+        (hh>0 ? hh+'h ' : '') +
+        String(mm).padStart(2,'0') + 'm ' +
+        String(ss).padStart(2,'0') + 's';
     }
     update();
     setInterval(update, 1000);
@@ -280,241 +210,255 @@
   startCountdown();
 
   // ════════════════════════════════════════════════════════════
-  //  FIND RECORD — today first, else most recent for draw
+  //  FIND RECORD: aaj ka result first, warna purana
   // ════════════════════════════════════════════════════════════
   function findRecord(data, state, draw) {
-    var arr = (data[state] || []);
-    if (!arr.length) return { rec: null, isToday: false };
-
+    var arr   = data[state] || [];
     var today = istDateStr();
 
-    // 1. Today + exact draw
-    for (var i = 0; i < arr.length; i++) {
-      if (arr[i].date === today && arr[i].draw === draw) {
+    // 1. Exact match: today + draw
+    for(var i=0; i<arr.length; i++){
+      if(arr[i].date === today && arr[i].draw === draw)
         return { rec: arr[i], isToday: true };
-      }
     }
-
-    // 2. Latest with same draw (old result fallback)
-    for (var j = 0; j < arr.length; j++) {
-      if (arr[j].draw === draw) {
+    // 2. Latest with same draw (fallback)
+    for(var j=0; j<arr.length; j++){
+      if(arr[j].draw === draw)
         return { rec: arr[j], isToday: false };
-      }
     }
-
-    // 3. Absolute latest (last resort)
-    return { rec: arr[0], isToday: false };
+    // 3. Absolute latest
+    if(arr.length) return { rec: arr[0], isToday: false };
+    return { rec: null, isToday: false };
   }
 
   // ════════════════════════════════════════════════════════════
-  //  RENDER RESULT CARD
+  //  RENDER RESULT
   // ════════════════════════════════════════════════════════════
   function renderResult(rec, draw, isToday) {
-    if (!rec) { showError(); return; }
+    if(!rec){ showError(); return; }
 
     // ── Banner ──
-    if (!isToday) {
-      showOldBanner(rec, draw);
-    } else {
-      removeBanner();
-    }
+    if(!isToday) showOldBanner(rec, draw);
+    else         clearBanner();
 
-    // ── Title + date ──
-    var dname = rec.draw_name || ((rec.state || 'Nagaland') + ' Lottery ' + rec.draw);
+    // ── Title + meta ──
+    var dname    = rec.draw_name || ('Nagaland ' + rec.draw);
     var titleStr = dname + ' Result — ' + fmtDate(rec.date);
 
-    var els = {
-      title:   document.getElementById('res-title'),
-      date:    document.getElementById('res-date'),
-      src:     document.getElementById('res-source'),
-      updated: document.getElementById('last-updated'),
-      ver:     document.getElementById('verified-badge'),
-    };
-    if (els.title)   els.title.textContent   = titleStr;
-    if (els.date)    els.date.textContent     = fmtDate(rec.date) + ' · ' + rec.draw;
-    if (els.src)     els.src.textContent      = (rec.source || '').replace(/^https?:\/\//,'');
-    if (els.updated) els.updated.textContent  = rec.fetched_at
-      ? 'Fetched: ' + rec.fetched_at.replace('T',' ').replace('+05:30',' IST')
-      : 'Date: ' + rec.date;
-    if (els.ver) {
-      els.ver.style.display = 'inline-block';
-      els.ver.textContent   = rec.verified ? '✓ Verified' : 'Unverified';
-      els.ver.className     = rec.verified ? 'verified' : 'unverified';
+    var el = function(id){ return document.getElementById(id); };
+
+    if(el('res-title'))   el('res-title').textContent   = titleStr;
+    if(el('res-date'))    el('res-date').textContent     = fmtDate(rec.date) + ' · ' + rec.draw;
+    if(el('res-source'))  el('res-source').textContent   = (rec.source||'').replace(/^https?:\/\//,'');
+    if(el('last-updated'))el('last-updated').textContent =
+      rec.fetched_at
+        ? 'Fetched: ' + rec.fetched_at.replace('T',' ').replace('+05:30',' IST')
+        : 'Date: ' + rec.date;
+
+    var vb = el('verified-badge');
+    if(vb){
+      vb.style.display = 'inline-block';
+      vb.textContent   = rec.verified ? '✓ Verified' : 'Unverified';
+      vb.className     = rec.verified ? 'verified' : 'unverified';
     }
 
     // ── Image ──
-    var iu = imgUrl(rec);
-    var img = document.getElementById('res-img');
-    if (img) {
-      if (iu) {
-        img.src   = iu;
-        img.alt   = titleStr;
-        img.style.display = 'none'; // onload shows it
+    var imgUrl = rec.image || '';
+    var imgEl  = el('res-img');
+    var skelEl = el('img-skel');
+
+    if(imgEl){
+      if(imgUrl){
+        imgEl.src = imgUrl;
+        imgEl.alt = titleStr;
+        imgEl.style.display = 'none'; // show on load
+        // Update OG image
+        var og = document.querySelector('meta[property="og:image"]');
+        if(og) og.setAttribute('content', imgUrl);
       } else {
-        var skel = document.getElementById('img-skel');
-        if (skel) skel.style.display = 'none';
-        var wrap = document.getElementById('img-wrap');
-        if (wrap) {
-          wrap.innerHTML = '<div style="padding:36px;text-align:center;color:var(--muted);font-size:.85rem;">' +
-            '📄 Result image not yet available for ' + rec.draw + '.<br>Check back after draw time.' +
-            '</div>';
-        }
+        // No image available
+        if(skelEl) skelEl.style.display = 'none';
+        var wrap = el('img-wrap');
+        if(wrap) wrap.innerHTML =
+          '<div style="padding:48px 20px;text-align:center;color:var(--muted);">' +
+          '<div style="font-size:2rem;margin-bottom:12px;">⏰</div>' +
+          '<p style="font-size:.9rem;font-weight:600;">Result image not yet published</p>' +
+          '<p style="font-size:.8rem;margin-top:6px;">Please check back after ' + draw + ' draw time.</p>' +
+          '</div>';
       }
     }
 
-    // ── PDF ──
-    var pu       = pdfUrl(rec);
-    var dlBtn    = document.getElementById('dl-btn');
-    var errBtn   = document.getElementById('pdf-err-btn');
-    var pdfFrame = document.getElementById('pdf-frame');
-    var pdfLoad  = document.getElementById('pdf-load');
-
-    if (dlBtn)  dlBtn.href  = pu || rec.source || '#';
-    if (errBtn) errBtn.href = pu || rec.source || '#';
-
-    if (pu && pdfFrame) {
-      pdfFrame.src = GD_VIEW + encodeURIComponent(pu);
-    } else if (pdfLoad) {
-      pdfLoad.style.display = 'none';
-      window.pdfFail();
+    // ── Download button → direct image link ──
+    var dlBtn = el('dl-btn');
+    if(dlBtn){
+      if(imgUrl){
+        dlBtn.href   = imgUrl;
+        dlBtn.setAttribute('download', 'lottery-result-' + rec.date + '-' + draw + '.jpg');
+        dlBtn.textContent = '⬇ Download Result Image';
+        dlBtn.style.display = 'inline-flex';
+      } else {
+        dlBtn.style.display = 'none';
+      }
     }
 
-    // ── SEO update ──
-    document.title = titleStr + ' | Lottery Sambad Result';
-    var md = document.querySelector('meta[name="description"]');
-    if (md) md.setAttribute('content','Check ' + titleStr + '. Official PDF download. Updated automatically.');
+    // ── Source link ──
+    var srcBtn = el('src-btn');
+    if(srcBtn && rec.source){
+      srcBtn.href = rec.source;
+      srcBtn.style.display = 'inline-flex';
+    }
+
+    // ── SEO title update ──
+    document.title = titleStr + ' | Lottery Sambad Result Today';
+    var metaDesc = document.querySelector('meta[name="description"]');
+    if(metaDesc) metaDesc.setAttribute('content',
+      'Check ' + titleStr + '. Official result image updated automatically.');
 
     // ── Show card ──
-    var loading = document.getElementById('loading-state');
-    var card    = document.getElementById('result-card');
-    if (loading) loading.style.display = 'none';
-    if (card)    card.style.display    = 'block';
+    if(el('loading-state')) el('loading-state').style.display = 'none';
+    if(el('error-state'))   el('error-state').style.display   = 'none';
+    if(el('result-card'))   el('result-card').style.display   = 'block';
   }
 
-  // ── Render history ────────────────────────────────────────────
+  // ── Render history grid ────────────────────────────────────────
   function renderHistory(data) {
     var grid = document.getElementById('hist-grid');
-    if (!grid) return;
+    if(!grid) return;
+
     var items = [];
-    ['nagaland','kerala'].forEach(function(st) {
-      (data[st] || []).slice(0,9).forEach(function(r){ items.push({st:st, rec:r}); });
+    ['nagaland','kerala'].forEach(function(st){
+      (data[st]||[]).slice(0,10).forEach(function(r){ items.push({st:st, rec:r}); });
     });
     items.sort(function(a,b){
-      return (b.rec.date + b.rec.draw) > (a.rec.date + a.rec.draw) ? 1 : -1;
+      var ka = a.rec.date + (a.rec.draw||'');
+      var kb = b.rec.date + (b.rec.draw||'');
+      return kb > ka ? 1 : -1;
     });
     items = items.slice(0,10);
-    if (!items.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center;">No history yet.</div>';
+
+    if(!items.length){
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);">No history yet.</div>';
       return;
     }
+
     grid.innerHTML = items.map(function(it){
-      var r  = it.rec;
-      var pu = pdfUrl(r);
-      var nm = (r.draw_name || it.st+' '+r.draw).replace(/^Dear\s/,'');
-      return '<a class="hitem" href="'+(pu||'#')+'" '+(pu?'download ':'')+' >' +
-        '<span>'+nm+' '+r.draw+'</span>' +
-        '<span class="hitem-sub">'+fmtDate(r.date)+'</span>' +
-        '<span class="hbadge">'+it.st.toUpperCase()+'</span>' +
+      var r   = it.rec;
+      var img = r.image || '';
+      var nm  = (r.draw_name||it.st+' '+r.draw).replace(/^Dear\s/,'');
+      return '<a class="hitem" href="' + (img||'#') + '" ' + (img ? 'target="_blank" rel="noopener"' : '') + '>' +
+        '<span>' + nm + ' ' + (r.draw||'') + '</span>' +
+        '<span class="hitem-sub">' + fmtDate(r.date) + '</span>' +
+        '<span class="hbadge">' + it.st.toUpperCase() + '</span>' +
         '</a>';
     }).join('');
   }
 
-  // ── Render sidebar ────────────────────────────────────────────
+  // ── Render sidebar ─────────────────────────────────────────────
   function renderSidebar(data) {
     var list = document.getElementById('sidebar-list');
-    if (!list) return;
-    var items = [];
-    var dotCls = ['','b','g','r','','b'];
-    var k = 0;
+    if(!list) return;
+    var dc = ['','b','g','r','','b'];
+    var k = 0, items = [];
     (data.nagaland||[]).slice(0,4).forEach(function(r){
-      items.push({ lbl:'Nagaland '+r.draw, sub:fmtDate(r.date), dc:dotCls[k++%6] });
+      items.push({lbl:'Nagaland '+r.draw, sub:fmtDate(r.date), d:dc[k++%6]});
     });
     (data.kerala||[]).slice(0,2).forEach(function(r){
-      items.push({ lbl:'Kerala '+(r.draw_name||r.draw||'3PM'), sub:fmtDate(r.date), dc:dotCls[k++%6] });
+      items.push({lbl:'Kerala '+(r.draw_name||r.draw||'3PM'), sub:fmtDate(r.date), d:dc[k++%6]});
     });
     list.innerHTML = items.map(function(it){
-      return '<li><a class="sri" href="#">' +
-        '<span class="dot '+it.dc+'" aria-hidden="true"></span>' +
-        '<span class="si"><span class="sn">'+it.lbl+'</span><span class="st">'+it.sub+'</span></span>' +
+      return '<li><a class="sri" href="#"><span class="dot '+it.d+'"></span>' +
+        '<span class="si"><span class="sn">'+it.lbl+'</span>' +
+        '<span class="st">'+it.sub+'</span></span>' +
         '<span class="sa">›</span></a></li>';
     }).join('');
   }
 
-  // ── Error state ───────────────────────────────────────────────
+  // ── Error state ────────────────────────────────────────────────
   function showError() {
-    document.getElementById('loading-state') && (document.getElementById('loading-state').style.display='none');
-    document.getElementById('result-card')   && (document.getElementById('result-card').style.display='none');
-    var e = document.getElementById('error-state');
-    if (e) e.style.display = 'block';
+    var el = function(id){ return document.getElementById(id); };
+    if(el('loading-state')) el('loading-state').style.display = 'none';
+    if(el('result-card'))   el('result-card').style.display   = 'none';
+    if(el('error-state'))   el('error-state').style.display   = 'block';
   }
 
   // ════════════════════════════════════════════════════════════
-  //  MAIN FETCH
+  //  MAIN FETCH with cache-bust (fixes stale date bug)
   // ════════════════════════════════════════════════════════════
-  var lastFetchedAt = null;
-
   function loadData() {
-    // Cache-bust — prevents browser from serving stale JSON
-    var bust = '?v=' + Date.now();
+    var bust = '?t=' + Date.now();  // Force fresh fetch every time
     var ctrl = new AbortController();
     var to   = setTimeout(function(){ ctrl.abort(); }, 10000);
 
-    fetch(JSON_URL + bust, { signal: ctrl.signal })
-      .then(function(r) {
+    fetch(JSON_URL + bust, { signal: ctrl.signal, cache: 'no-store' })
+      .then(function(r){
         clearTimeout(to);
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if(!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       })
-      .then(function(data) {
-        lastFetchedAt = new Date();
-
-        var draw  = CFG.draw || detectDraw();
+      .then(function(data){
+        var draw  = CFG.draw  || detectDraw();
         var state = CFG.state || 'nagaland';
-
         var found = findRecord(data, state, draw);
+
         renderResult(found.rec, draw, found.isToday);
         renderHistory(data);
         renderSidebar(data);
       })
-      .catch(function(err) {
+      .catch(function(err){
         clearTimeout(to);
-        console.warn('Fetch failed:', err.message);
-
-        // Try to use last known data from cache or show error
-        if (!lastFetchedAt) {
+        console.warn('JSON fetch failed:', err.message);
+        // Show error only if first load failed
+        var card = document.getElementById('result-card');
+        if(card && card.style.display === 'none'){
           showError();
         }
-        // If we had data before, silently keep showing it
       });
   }
 
-  // ── Auto-refresh logic ────────────────────────────────────────
-  function scheduleRefresh() {
+  // ── Image load handlers ────────────────────────────────────────
+  // These are called from img onload/onerror in HTML
+  window.onImgLoad = function(img) {
+    img.style.display = 'block';
+    var skel = document.getElementById('img-skel');
+    if(skel) skel.style.display = 'none';
+  };
+  window.onImgFail = function(img) {
+    img.style.display = 'none';
+    var skel = document.getElementById('img-skel');
+    if(skel) skel.style.display = 'none';
+    var wrap = document.getElementById('img-wrap');
+    if(wrap && !wrap.querySelector('.img-err')){
+      var div = document.createElement('div');
+      div.className = 'img-err';
+      div.style.cssText = 'padding:40px;text-align:center;color:var(--muted);font-size:.85rem;';
+      div.innerHTML = '⏰ Image not available yet.<br>Please check after draw time.';
+      wrap.appendChild(div);
+    }
+  };
+
+  // ── Auto-refresh schedule ──────────────────────────────────────
+  function scheduleNext() {
     var h = istNow().getHours();
     var m = istNow().getMinutes();
 
-    // Near draw times — refresh every 3 min
+    // Near draw times: every 3 minutes
     var nearDraw =
-      (h === 12 && m >= 55) || (h === 13 && m < 15) ||
-      (h === 17 && m >= 55) || (h === 18 && m < 15) ||
-      (h === 19 && m >= 55) || (h === 20 && m < 15);
+      (h === 12 && m >= 50) || (h === 13 && m <= 20) ||
+      (h === 17 && m >= 50) || (h === 18 && m <= 20) ||
+      (h === 19 && m >= 50) || (h === 20 && m <= 20);
 
-    var interval = nearDraw ? 3 * 60 * 1000 : 10 * 60 * 1000;
-    setTimeout(function() {
+    setTimeout(function(){
       loadData();
-      scheduleRefresh(); // reschedule dynamically
-    }, interval);
+      scheduleNext();
+    }, nearDraw ? 3*60*1000 : 10*60*1000);
   }
 
   // ── INIT ──────────────────────────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-      loadData();
-      scheduleRefresh();
-    });
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ loadData(); scheduleNext(); });
   } else {
     loadData();
-    scheduleRefresh();
+    scheduleNext();
   }
 
 })();
