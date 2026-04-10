@@ -1,119 +1,128 @@
-# ═══════════════════════════════════════════════════════
-#  Lottery Bot v3 — GitHub Actions Workflow
-#  ─────────────────────────────────────────────────────
-#  Schedule (IST draw times → UTC):
-#    1:05 PM IST = 07:35 UTC
-#    6:05 PM IST = 12:35 UTC
-#    8:10 PM IST = 14:40 UTC
+# ═══════════════════════════════════════════════════════════
+#  Lottery Bot — GitHub Actions Workflow (Fixed)
+#  ───────────────────────────────────────────────────────────
+#  Cron schedule (IST → UTC conversion):
+#    1PM IST  = 07:35 UTC
+#    6PM IST  = 12:35 UTC
+#    8PM IST  = 14:40 UTC
 #
-#  Also commits: sitemap.xml, pdfs/, images/
-# ═══════════════════════════════════════════════════════
+#  IMPORTANT: Agar koi draw miss ho gaya, workflow_dispatch
+#  se manually bhi chala sakte ho GitHub UI se.
+# ═══════════════════════════════════════════════════════════
 
-name: Lottery Bot v3
+name: Lottery Bot
 
 on:
   schedule:
-    - cron: "35 7  * * *"   # 1:05 PM IST
-    - cron: "35 12 * * *"   # 6:05 PM IST
-    - cron: "40 14 * * *"   # 8:10 PM IST
+    - cron: "35 7  * * *"    # 1:05 PM IST (after 1PM result)
+    - cron: "35 12 * * *"    # 6:05 PM IST (after 6PM result)
+    - cron: "40 14 * * *"    # 8:10 PM IST (after 8PM result)
 
+  # Manual trigger — GitHub Actions UI se chala sako
   workflow_dispatch:
     inputs:
       draw:
-        description: "Draw time (1PM / 6PM / 8PM)"
-        required: false
-        default: ""
-      state:
-        description: "State (nagaland / kerala / all)"
+        description: "Draw: 1PM / 6PM / 8PM / all"
         required: false
         default: "all"
       date:
-        description: "Date YYYY-MM-DD (blank = today IST)"
+        description: "Date: YYYY-MM-DD (blank = today IST)"
         required: false
         default: ""
-      skip_image:
-        description: "Skip image scraping (true/false)"
-        required: false
-        default: "false"
 
 permissions:
-  contents: write
+  contents: write   # results.json commit karne ke liye
 
 jobs:
-  lottery-bot:
+  fetch-results:
     name: Fetch Lottery Results
     runs-on: ubuntu-latest
+    timeout-minutes: 10   # Zyada time laga toh fail karo
 
     steps:
-      - name: Checkout
+      # ── 1. Checkout ──────────────────────────────────────────
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      # ── 2. Python setup ──────────────────────────────────────
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install Poppler (PDF→Image)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils
-        continue-on-error: true
+      # ── 3. Install dependencies ──────────────────────────────
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 -q
 
-      - name: Install Python packages
-        run: pip install -r requirements.txt -q
-
-      - name: Create output directories
-        run: |
-          mkdir -p pdfs images
-          touch pdfs/.gitkeep images/.gitkeep
-
-      - name: Run Lottery Bot
+      # ── 4. Run bot ───────────────────────────────────────────
+      - name: Run lottery bot
         env:
           PYTHONUNBUFFERED: "1"
-          TZ: "Asia/Kolkata"
         run: |
+          # Build arguments
           ARGS=""
-          [ -n "${{ github.event.inputs.draw }}" ]        && ARGS="$ARGS --draw ${{ github.event.inputs.draw }}"
-          [ -n "${{ github.event.inputs.state }}" ]       && ARGS="$ARGS --state ${{ github.event.inputs.state }}"
-          [ -n "${{ github.event.inputs.date }}" ]        && ARGS="$ARGS --date ${{ github.event.inputs.date }}"
-          [ "${{ github.event.inputs.skip_image }}" = "true" ] && ARGS="$ARGS --skip-image"
-          echo "▶ Running: python bot.py $ARGS"
+
+          if [[ "${{ github.event.inputs.draw }}" != "" ]]; then
+            ARGS="--draw ${{ github.event.inputs.draw }}"
+          fi
+
+          if [[ "${{ github.event.inputs.date }}" != "" ]]; then
+            ARGS="$ARGS --date ${{ github.event.inputs.date }}"
+          fi
+
+          echo "Running: python bot.py $ARGS"
           python bot.py $ARGS
 
-      - name: Commit results
+      # ── 5. Commit results ────────────────────────────────────
+      - name: Commit and push results
         run: |
           git config user.name  "Lottery Bot"
           git config user.email "bot@noreply.github.com"
 
-          # Stage all changed files
-          git add results.json sitemap.xml || true
-          git add pdfs/   || true
-          git add images/ || true
+          git add results.json
 
           if git diff --cached --quiet; then
-            echo "ℹ️  No changes to commit"
+            echo "No changes to commit — results already current"
           else
-            DATE=$(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')
-            git commit -m "🎯 Lottery results — ${DATE}"
+            # IST timestamp in commit message
+            IST_TIME=$(python3 -c "
+          import datetime
+          ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+          print(ist.strftime('%d %b %Y %I:%M %p IST'))
+          ")
+            git commit -m "🎯 Lottery result updated — ${IST_TIME}"
             git push
-            echo "✅ Pushed successfully"
+            echo "✅ Pushed to repo"
           fi
 
-      - name: Summary
+      # ── 6. Summary ───────────────────────────────────────────
+      - name: Show summary
         if: always()
         run: |
-          echo "=== Run Summary ==="
-          echo "Time   : $(TZ='Asia/Kolkata' date '+%Y-%m-%d %H:%M IST')"
-          echo "Trigger: ${{ github.event_name }}"
-          [ -f results.json ] && python3 -c "
-          import json
-          d = json.load(open('results.json'))
-          print('Records:', d.get('total_records','?'))
-          print('Updated:', d.get('last_updated','?'))
-          n = d.get('nagaland', [])
-          if n: print('Latest Nagaland:', n[0]['date'], n[0]['draw'])
+          echo "===== BOT SUMMARY ====="
+          if [ -f results.json ]; then
+            python3 -c "
+          import json, datetime
+
+          def ist():
+              return datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+
+          with open('results.json') as f:
+              d = json.load(f)
+
+          print(f'IST time     : {ist().strftime(\"%Y-%m-%d %H:%M\")}')
+          print(f'Last updated : {d.get(\"last_updated\", \"N/A\")}')
+          print(f'Total records: {d.get(\"total_records\", 0)}')
+
+          for r in d.get('nagaland', [])[:3]:
+              img = r.get('image','')
+              has_img = '✅' if img else '❌'
+              print(f'{has_img} {r[\"date\"]} {r[\"draw\"]:3s} | {r[\"draw_name\"]}')
           "
-          echo "==================="
+          else
+            echo "results.json not found!"
+          fi
+          echo "======================="
