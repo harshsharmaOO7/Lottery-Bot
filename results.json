@@ -1,37 +1,37 @@
 {
   "nagaland": [
     {
-      "date": "2026-04-11",
+      "date": "2026-04-13",
       "draw": "8PM",
-      "draw_name": "Dear Pelican Night",
-      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_LATEST8PM.webp",
+      "draw_name": "Dear Hawk Evening",
+      "image": "images/nagaland-8pm-2026-04-13.jpg",
       "pdf": "",
-      "source": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
+      "source": "manual",
       "verified": true,
-      "fetched_at": "2026-04-11T20:08:30+05:30"
+      "fetched_at": "2026-04-13T20:10:00+05:30"
     },
     {
-      "date": "2026-04-11",
+      "date": "2026-04-13",
       "draw": "6PM",
-      "draw_name": "Dear Cupid Evening",
-      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_LATEST6PM.webp",
+      "draw_name": "Dear Vixen Evening",
+      "image": "images/nagaland-6pm-2026-04-13.jpg",
       "pdf": "",
-      "source": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-7-pm-result.html",
+      "source": "manual",
       "verified": true,
-      "fetched_at": "2026-04-11T18:08:20+05:30"
+      "fetched_at": "2026-04-13T18:10:00+05:30"
     },
     {
-      "date": "2026-04-11",
+      "date": "2026-04-13",
       "draw": "1PM",
-      "draw_name": "Dear Indus Morning",
-      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_LATEST1PM.webp",
+      "draw_name": "Dear Yamuna Morning",
+      "image": "images/nagaland-1pm-2026-04-13.jpg",
       "pdf": "",
-      "source": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-result-1-pm.html",
+      "source": "manual",
       "verified": true,
-      "fetched_at": "2026-04-11T13:08:10+05:30"
+      "fetched_at": "2026-04-13T13:10:00+05:30"
     }
   ],
   "kerala": [],
-  "last_updated": "2026-04-11T20:08:30+05:30",
+  "last_updated": "2026-04-13T20:10:00+05:30",
   "total_records": 3
 }
