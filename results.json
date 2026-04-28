@@ -1,37 +1,6 @@
 {
-  "nagaland": [
-    {
-      "date": "2026-04-22",
-      "draw": "8PM",
-      "draw_name": "Dear Hawk Evening",
-      "image": "images/nagaland-8pm-2026-04-22.jpg",
-      "pdf": "",
-      "source": "manual",
-      "verified": true,
-      "fetched_at": "2026-04-22T20:10:00+05:30"
-    },
-    {
-      "date": "2026-04-22",
-      "draw": "6PM",
-      "draw_name": "Dear Vixen Evening",
-      "image": "images/nagaland-6pm-2026-04-22.jpg",
-      "pdf": "",
-      "source": "manual",
-      "verified": true,
-      "fetched_at": "2026-04-22T18:10:00+05:30"
-    },
-    {
-      "date": "2026-04-22",
-      "draw": "1PM",
-      "draw_name": "Dear Yamuna Morning",
-      "image": "images/nagaland-1pm-2026-04-22.jpg",
-      "pdf": "",
-      "source": "manual",
-      "verified": true,
-      "fetched_at": "2026-04-22T13:10:00+05:30"
-    }
-  ],
+  "nagaland": [],
   "kerala": [],
-  "last_updated": "2026-04-22T20:10:00+05:30",
-  "total_records": 3
+  "last_updated": "",
+  "total_records": 0
 }
