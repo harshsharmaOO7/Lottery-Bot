@@ -1,6 +1,37 @@
 {
-  "nagaland": [],
+  "nagaland": [
+    {
+      "date": "2026-04-29",
+      "draw": "8PM",
+      "draw_name": "Dear Eagle Evening",
+      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_69f0c6c009137.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/04/pdf_69f0c6c009207.pdf",
+      "source": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
+      "verified": true,
+      "fetched_at": "2026-04-29T09:54:58+05:30"
+    },
+    {
+      "date": "2026-04-29",
+      "draw": "6PM",
+      "draw_name": "Dear Cupid Evening",
+      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_69f0aba811fd1.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/04/pdf_69f0aba8120bd.pdf",
+      "source": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-7-pm-result.html",
+      "verified": true,
+      "fetched_at": "2026-04-29T09:54:56+05:30"
+    },
+    {
+      "date": "2026-04-29",
+      "draw": "1PM",
+      "draw_name": "Dear Indus Morning",
+      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/img_69f064604b97e.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/04/pdf_69f064604ba5e.pdf",
+      "source": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-result-1-pm.html",
+      "verified": true,
+      "fetched_at": "2026-04-29T09:54:53+05:30"
+    }
+  ],
   "kerala": [],
-  "last_updated": "",
-  "total_records": 0
+  "last_updated": "2026-04-29T09:55:00+05:30",
+  "total_records": 3
 }
