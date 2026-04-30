@@ -1,6 +1,16 @@
 {
   "nagaland": [
     {
+      "date": "2026-04-30",
+      "draw": "8PM",
+      "draw_name": "Dear Falcon Evening",
+      "image": "https://lottery-sambad.com.co/wp-content/uploads/2026/04/dear-lottery-sambad-8-pm-30-april-2026-winner-list.webp",
+      "pdf": "https://lottery-sambad.com.co/wp-content/uploads/2026/04/EN300426.PDF",
+      "source": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
+      "verified": true,
+      "fetched_at": "2026-04-30T21:38:16+05:30"
+    },
+    {
       "date": "2026-04-29",
       "draw": "8PM",
       "draw_name": "Dear Eagle Evening",
@@ -32,6 +42,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-04-30T20:06:03+05:30",
-  "total_records": 3
+  "last_updated": "2026-04-30T21:38:18+05:30",
+  "total_records": 4
 }
