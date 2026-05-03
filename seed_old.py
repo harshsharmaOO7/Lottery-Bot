@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
 """
-seed_old.py — One-time historical data seeder
-==============================================
-Scrapes oldresult.html table → populates results.json with last 90 records.
-Run ONCE via GitHub Actions (workflow_dispatch → job: seed).
-After seeding, daily bot.py handles new results automatically.
-
-Source: https://lotterysambadresult.in/oldresult.html
+seed_old.py — One-time Historical Data Seeder
+===============================================
+Scrapes oldresult.html → stores 90 records in results.json.
+Run ONCE via GitHub Actions workflow_dispatch (job: seed).
 """
 import re, json, time, logging, datetime, requests
 from pathlib import Path
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
+logging.basicConfig(level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 log = logging.getLogger("seed")
 
 URL          = "https://lotterysambadresult.in/oldresult.html"
@@ -30,7 +24,6 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
     "Accept-Language": "en-IN,en;q=0.9",
     "Referer": "https://www.google.com/",
-    "Cache-Control": "no-cache",
 }
 
 DRAW_ORDER = {"1PM": 1, "6PM": 2, "8PM": 3}
@@ -51,7 +44,7 @@ def get_draw_name(draw, date_str):
     try:
         dt = datetime.datetime.strptime(date_str, "%Y-%m-%d")
         return DRAW_NAMES.get(draw, {}).get(dt.weekday(), f"Dear {draw}")
-    except Exception:
+    except:
         return f"Dear {draw}"
 
 def parse_date(txt):
@@ -60,19 +53,14 @@ def parse_date(txt):
         try:
             return datetime.datetime.strptime(txt, fmt).strftime("%Y-%m-%d")
         except ValueError:
-            continue
-    # Regex fallback
-    m = re.search(
-        r'(\d{1,2})\s+(January|February|March|April|May|June|July|'
-        r'August|September|October|November|December)\s+(\d{4})',
-        txt, re.I
-    )
+            pass
+    m = re.search(r'(\d{1,2})\s+(January|February|March|April|May|June|July|'
+                  r'August|September|October|November|December)\s+(\d{4})', txt, re.I)
     if m:
         try:
-            return datetime.datetime.strptime(
-                f"{m.group(1)} {m.group(2)} {m.group(3)}", "%d %B %Y"
-            ).strftime("%Y-%m-%d")
-        except Exception:
+            return datetime.datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}",
+                                              "%d %B %Y").strftime("%Y-%m-%d")
+        except:
             pass
     return None
 
@@ -94,16 +82,13 @@ def scrape_records(soup):
     tables = soup.find_all("table")
     log.info(f"Found {len(tables)} table(s)")
     records = []
-
     for tidx, table in enumerate(tables):
         rows = table.find_all("tr")
         log.info(f"Table {tidx}: {len(rows)} rows")
-
-        for row in rows[1:]:   # skip header
+        for row in rows[1:]:
             cols = row.find_all("td")
             if len(cols) < 3:
                 continue
-
             for i, draw in enumerate(["1PM", "6PM", "8PM"]):
                 if i >= len(cols):
                     continue
@@ -112,35 +97,31 @@ def scrape_records(soup):
                 date = parse_date(txt)
                 if not date:
                     continue
-
-                # PDF link in this cell
                 a   = col.find("a", href=True)
                 pdf = ""
                 if a:
                     href = a["href"].strip()
                     if href:
                         pdf = urljoin(URL, href) if not href.startswith("http") else href
-
                 records.append({
                     "date":       date,
                     "draw":       draw,
                     "draw_name":  get_draw_name(draw, date),
-                    "image":      "",    # historical — no image URL available
+                    "image":      "",   # historical — no image available
                     "pdf":        pdf,
                     "source":     URL,
                     "verified":   True,
-                    "seeded":     True,  # marks as historical seed
+                    "seeded":     True,
                     "fetched_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00"),
                 })
                 log.info(f"  + {date} {draw} | pdf={'✅' if pdf else '❌'}")
-
     return records
 
 def load_existing():
     if RESULTS_FILE.exists():
         try:
             data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
-            log.info(f"Existing: {len(data.get('nagaland', []))} records")
+            log.info(f"Existing: {len(data.get('nagaland',[]))} records")
             return data
         except Exception as e:
             log.error(f"Load error: {e}")
@@ -149,7 +130,6 @@ def load_existing():
 def merge_save(existing, new_records):
     nagaland = existing.get("nagaland", [])
     existing_keys = {(r["date"], r["draw"]) for r in nagaland}
-
     added = 0
     for rec in new_records:
         key = (rec["date"], rec["draw"])
@@ -157,22 +137,14 @@ def merge_save(existing, new_records):
             nagaland.append(rec)
             existing_keys.add(key)
             added += 1
-
-    # Sort newest first, 8PM > 6PM > 1PM
-    nagaland.sort(
-        key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)),
-        reverse=True
-    )
+    nagaland.sort(key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)), reverse=True)
     nagaland = nagaland[:MAX_HISTORY]
-
     existing["nagaland"]      = nagaland
     existing["last_updated"]  = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
     existing["total_records"] = len(nagaland)
-
     tmp = RESULTS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
     tmp.replace(RESULTS_FILE)
-
     log.info(f"✅ Saved: {len(nagaland)} total | {added} new seeded")
     return added, nagaland
 
@@ -180,30 +152,17 @@ def main():
     log.info("=" * 60)
     log.info("SEED OLD RESULTS — One-time historical seeder")
     log.info("=" * 60)
-
     soup = fetch_old()
     if not soup:
-        log.error("Could not fetch oldresult.html — aborting")
-        return
-
+        log.error("Could not fetch oldresult.html"); return
     records = scrape_records(soup)
     log.info(f"\nScraped: {len(records)} raw records")
-
     if not records:
-        log.error("No records found — check table structure on oldresult.html")
-        return
-
-    # Sort and keep latest 90
-    records.sort(
-        key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)),
-        reverse=True
-    )
+        log.error("No records found"); return
+    records.sort(key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)), reverse=True)
     records = records[:MAX_HISTORY]
-    log.info(f"Keeping latest: {len(records)}")
-
     existing = load_existing()
     added, nagaland = merge_save(existing, records)
-
     log.info("=" * 60)
     log.info(f"SEED COMPLETE — {added} records added")
     log.info("Latest 10:")

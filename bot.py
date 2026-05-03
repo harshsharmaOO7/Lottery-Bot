@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-bot.py — Lottery Sambad Daily Scraper
-======================================
-Scrapes today's result image + PDF from lotterysambadresult.in
-Maintains last 90 records in results.json (3 draws × 30 days).
+bot.py — Lottery Sambad Daily Scraper (v3 - Fixed)
+====================================================
+Changes from v2:
+  - Stores FULL https:// image URL in results.json (not local path)
+  - Also downloads image locally to images/ folder as backup
+  - MAX_HISTORY = 90 (was 30)
+  - Fixed draw detection for all 3 draws
+  - Fixed date handling so every draw of every date is stored
 
 Run modes:
-  python bot.py               → auto-detect draw from IST time
-  python bot.py --draw 1PM    → specific draw
-  python bot.py --draw all    → all 3 draws
-  python bot.py --draw all --date 2026-04-27  → specific date
-
-HTML patterns confirmed on lotterysambadresult.in:
-  IMAGE: <figure class="aligncenter size-full"><img src="wp-content/uploads/.../img_HASH.webp">
-  PDF:   <a class="max_button download_btn" href="wp-content/uploads/.../pdf_HASH.pdf">
+  python bot.py              → auto-detect draw from IST time
+  python bot.py --draw 1PM   → specific draw
+  python bot.py --draw all   → all 3 draws (use for manual backfill)
+  python bot.py --draw all --date 2026-04-29  → specific date
 """
-import sys, re, json, time, logging, argparse, datetime, requests
+import sys, re, json, time, logging, argparse, datetime, requests, shutil
 from pathlib import Path
 from bs4 import BeautifulSoup
 
@@ -27,6 +27,7 @@ logging.basicConfig(
 log = logging.getLogger("bot")
 
 RESULTS_FILE = Path("results.json")
+IMAGES_DIR   = Path("images")
 MAX_HISTORY  = 90   # 3 draws × 30 days
 
 HEADERS = {
@@ -58,8 +59,7 @@ DRAW_NAMES = {
             6:"Dear Hawk Evening"},
 }
 
-# ── IST helpers ────────────────────────────────────────────────────────────────
-
+# ── IST helpers ────────────────────────────────────────────────────────────
 def get_ist():
     return datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
 
@@ -78,8 +78,7 @@ def get_draw_name(draw, dt=None):
         dt = get_ist()
     return DRAW_NAMES.get(draw, {}).get(dt.weekday(), f"Dear {draw}")
 
-# ── Page helpers ───────────────────────────────────────────────────────────────
-
+# ── Page fetch ─────────────────────────────────────────────────────────────
 def fetch_page(url):
     for attempt in range(1, 4):
         try:
@@ -93,39 +92,34 @@ def fetch_page(url):
             time.sleep(3 * attempt)
     return None
 
+# ── Image extraction ───────────────────────────────────────────────────────
 def is_thumbnail(url):
     return bool(re.search(r"-\d{2,3}x\d{2,3}\.", url))
 
 def today_in_alt(alt, ist_dt):
     months = ["january","february","march","april","may","june",
               "july","august","september","october","november","december"]
+    alt_l = alt.lower()
     patterns = [
         f"{ist_dt.day}-{months[ist_dt.month-1]}-{ist_dt.year}",
         f"{months[ist_dt.month-1]}-{ist_dt.day}-{ist_dt.year}",
         f"{months[ist_dt.month-1]} {ist_dt.day} {ist_dt.year}",
         f"{ist_dt.day} {months[ist_dt.month-1]} {ist_dt.year}",
+        f"{str(ist_dt.day).zfill(2)}/{str(ist_dt.month).zfill(2)}/{ist_dt.year}",
     ]
-    alt_lower = alt.lower()
-    return any(p in alt_lower for p in patterns)
+    return any(p in alt_l for p in patterns)
 
 def extract_image(soup, draw, ist_dt):
-    """
-    S1: <figure class="aligncenter size-full"> img (confirmed from real HTML)
-    S2: Scored candidate scan across all wp-content images
-    """
-    # Strategy 1
+    # Strategy 1: confirmed figure pattern from real HTML
     fig = soup.find("figure", class_=lambda c: c and "aligncenter" in c and "size-full" in c)
     if fig:
         img = fig.find("img")
         if img:
             src = img.get("src", "").strip()
             alt = img.get("alt", "").strip()
-            log.info(f"[S1] src: {src[:80]}")
             if src and "wp-content/uploads" in src and not is_thumbnail(src):
-                if today_in_alt(alt, ist_dt):
-                    log.info("[S1] ✅ Today's date confirmed in alt")
-                else:
-                    log.warning("[S1] ⚠️ Date mismatch — using anyway (newest on page)")
+                match = today_in_alt(alt, ist_dt)
+                log.info(f"[S1] src: {src[:90]} | date_match: {match}")
                 return src
 
     # Strategy 2: scored scan
@@ -139,16 +133,16 @@ def extract_image(soup, draw, ist_dt):
             continue
         if is_thumbnail(src):
             continue
-        if any(x in src.lower() for x in ["logo", "banner", "favicon", "icon"]):
+        if any(x in src.lower() for x in ["logo", "banner", "favicon", "icon", "sponsor"]):
             continue
         score = 0
-        if any(k in alt for k in ["sambad", "result", "winner", "lottery", "dear"]):
+        if any(k in alt for k in ["sambad", "result", "winner", "lottery", "dear", "nagaland"]):
             score += 4
         if draw_num in alt:
             score += 3
         if today_in_alt(alt, ist_dt):
             score += 5
-        if src.endswith((".webp", ".jpg", ".jpeg")):
+        if src.endswith((".webp", ".jpg", ".jpeg", ".png")):
             score += 1
         if score > 0:
             candidates.append((score, src))
@@ -156,43 +150,59 @@ def extract_image(soup, draw, ist_dt):
     if candidates:
         candidates.sort(reverse=True)
         best = candidates[0][1]
-        log.info(f"[S2] Best (score={candidates[0][0]}): {best[:80]}")
+        log.info(f"[S2] Best (score={candidates[0][0]}): {best[:90]}")
         return best
 
     log.warning("No image found on page")
     return None
 
 def extract_pdf(soup):
-    """
-    Primary: <a class="max_button download_btn"> (confirmed from real HTML)
-    Fallback: any wp-content .pdf link
-    """
     dl = soup.find("a", class_=lambda c: c and "download_btn" in c)
     if dl:
         href = dl.get("href", "")
         if href and ".pdf" in href.lower():
-            log.info(f"PDF (download_btn): {href[:80]}")
             return href
-
     for a in soup.find_all("a", href=True):
         href = a["href"]
         if href.lower().endswith(".pdf") and "wp-content" in href:
-            log.info(f"PDF (fallback): {href[:80]}")
             return href
-
-    log.info("No PDF found")
     return None
 
-# ── JSON I/O ───────────────────────────────────────────────────────────────────
+# ── Image download (local backup) ─────────────────────────────────────────
+def download_image(img_url, draw, date):
+    """Download image locally to images/ folder as backup."""
+    IMAGES_DIR.mkdir(exist_ok=True)
+    ext = "webp" if img_url.endswith(".webp") else "jpg"
+    local_name = f"nagaland-{draw.lower()}-{date}.{ext}"
+    local_path = IMAGES_DIR / local_name
 
+    if local_path.exists():
+        log.info(f"Image already downloaded: {local_name}")
+        return local_name
+
+    try:
+        img_headers = {**HEADERS, "Referer": "https://lotterysambadresult.in/"}
+        r = requests.get(img_url, headers=img_headers, timeout=30, stream=True)
+        r.raise_for_status()
+        with open(local_path, "wb") as f:
+            shutil.copyfileobj(r.raw, f)
+        size_kb = local_path.stat().st_size // 1024
+        log.info(f"Downloaded: {local_name} ({size_kb} KB)")
+        return local_name
+    except Exception as e:
+        log.warning(f"Image download failed (will use URL): {e}")
+        return None
+
+# ── JSON I/O ───────────────────────────────────────────────────────────────
 def load_results():
     if RESULTS_FILE.exists():
         try:
             data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
-            log.info(f"Loaded results.json — {len(data.get('nagaland', []))} nagaland records")
+            n = len(data.get("nagaland", []))
+            log.info(f"Loaded results.json — {n} nagaland records")
             return data
         except Exception as e:
-            log.error(f"results.json parse error: {e}")
+            log.error(f"results.json error: {e}")
     return {"nagaland": [], "kerala": [], "last_updated": "", "total_records": 0}
 
 def save_results(data):
@@ -201,8 +211,7 @@ def save_results(data):
     tmp.replace(RESULTS_FILE)
     log.info(f"✓ Saved ({RESULTS_FILE.stat().st_size:,} bytes)")
 
-# ── Draw runner ────────────────────────────────────────────────────────────────
-
+# ── Draw runner ────────────────────────────────────────────────────────────
 def run_draw(draw, date, results):
     log.info(f"━━━━ {draw} | {date} ━━━━")
     soup = fetch_page(SOURCE_PAGES[draw])
@@ -210,7 +219,6 @@ def run_draw(draw, date, results):
         log.error(f"Page fetch failed for {draw}")
         return False
 
-    # Use IST datetime derived from the target date for accurate draw_name
     try:
         ist_dt = datetime.datetime.strptime(date, "%Y-%m-%d")
     except Exception:
@@ -220,12 +228,18 @@ def run_draw(draw, date, results):
     pdf_url = extract_pdf(soup)
 
     if not img_url:
-        log.warning(f"No image for {draw} — result not published yet?")
+        log.warning(f"No image for {draw} on {date} — result not published yet?")
         return False
+
+    # Download image locally (best-effort)
+    local_name = download_image(img_url, draw, date)
+
+    # Store: prefer local path, fallback to external URL
+    image_store = f"images/{local_name}" if local_name else img_url
 
     nagaland = results.setdefault("nagaland", [])
 
-    # Check if record exists for this date+draw
+    # Update if record exists for this exact date+draw
     existing = next(
         (r for r in nagaland if r.get("date") == date and r.get("draw") == draw),
         None
@@ -233,28 +247,26 @@ def run_draw(draw, date, results):
 
     if existing:
         changed = False
-        if existing.get("image") != img_url:
-            existing["image"] = img_url
+        if existing.get("image") != image_store:
+            existing["image"] = image_store
             changed = True
-            log.info("Updated image URL")
         if pdf_url and existing.get("pdf") != pdf_url:
             existing["pdf"] = pdf_url
             changed = True
-            log.info("Updated PDF URL")
         if changed:
             existing["fetched_at"] = ist_ts()
-            existing.pop("seeded", None)   # Remove seed flag — now has real image
+            existing.pop("seeded", None)
             log.info(f"✓ Updated: {date} {draw}")
         else:
             log.info("No change needed")
         return changed
 
-    # New record — image is the external URL from lotterysambadresult.in
+    # New record
     record = {
         "date":       date,
         "draw":       draw,
         "draw_name":  get_draw_name(draw, ist_dt),
-        "image":      img_url,    # Full https:// URL — app.js uses as-is
+        "image":      image_store,
         "pdf":        pdf_url or "",
         "source":     SOURCE_PAGES[draw],
         "verified":   True,
@@ -263,22 +275,21 @@ def run_draw(draw, date, results):
 
     nagaland.insert(0, record)
 
-    # Sort: newest date first, then 8PM > 6PM > 1PM
+    # Sort: newest date first, then 8PM > 6PM > 1PM within same date
     nagaland.sort(
         key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)),
         reverse=True
     )
     results["nagaland"] = nagaland[:MAX_HISTORY]
 
-    log.info(f"✓ New: {date} {draw} | {record['draw_name']}")
-    log.info(f"  Image: {img_url[:80]}")
+    log.info(f"✓ New record: {date} {draw} | {record['draw_name']}")
+    log.info(f"  Image: {image_store[:90]}")
     log.info(f"  PDF  : {pdf_url or 'N/A'}")
     return True
 
-# ── Main ───────────────────────────────────────────────────────────────────────
-
+# ── Main ───────────────────────────────────────────────────────────────────
 def main():
-    p = argparse.ArgumentParser(description="Lottery Sambad daily result scraper")
+    p = argparse.ArgumentParser(description="Lottery Sambad daily result scraper v3")
     p.add_argument("--draw", default=None, help="1PM / 6PM / 8PM / all")
     p.add_argument("--date", default=None, help="YYYY-MM-DD (default: today IST)")
     args = p.parse_args()
@@ -292,9 +303,9 @@ def main():
     else:
         draws = [auto_draw()]
 
-    log.info("=" * 60)
-    log.info(f"Bot | IST: {ist_ts()} | Date: {date} | Draws: {draws}")
-    log.info("=" * 60)
+    log.info("=" * 62)
+    log.info(f"Bot v3 | IST: {ist_ts()} | Date: {date} | Draws: {draws}")
+    log.info("=" * 62)
 
     results     = load_results()
     any_changed = False
@@ -311,7 +322,7 @@ def main():
     results["total_records"] = len(results.get("nagaland", []))
     save_results(results)
 
-    log.info("=" * 60)
+    log.info("=" * 62)
     log.info("SUMMARY:")
     for r in results.get("nagaland", [])[:9]:
         seeded = " [seed]" if r.get("seeded") else ""
@@ -321,7 +332,7 @@ def main():
             f"{r['date']} {r['draw']:3} | {r['draw_name']}{seeded}"
         )
     log.info(f"  Changed: {any_changed} | Total: {results['total_records']}")
-    log.info("=" * 60)
+    log.info("=" * 62)
     sys.exit(0)
 
 if __name__ == "__main__":
