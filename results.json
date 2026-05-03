@@ -2,6 +2,16 @@
   "nagaland": [
     {
       "date": "2026-05-03",
+      "draw": "8PM",
+      "draw_name": "Dear Hawk Evening",
+      "image": "https://lotterysambadresult.in/wp-content/uploads/2026/04/install-sambad-app.webp",
+      "pdf": "",
+      "source": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
+      "verified": true,
+      "fetched_at": "2026-05-03T19:25:23+05:30"
+    },
+    {
+      "date": "2026-05-03",
       "draw": "6PM",
       "draw_name": "Dear Vixen Evening",
       "image": "https://lotterysambadresult.in/wp-content/uploads/2026/05/img_69f5f160a48b0.webp",
@@ -92,6 +102,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-05-03T14:36:49+05:30",
-  "total_records": 9
+  "last_updated": "2026-05-03T19:25:25+05:30",
+  "total_records": 10
 }
