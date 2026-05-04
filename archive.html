@@ -3,32 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Old Lottery Results Archive | Nagaland Kerala Lottery Sambad History</title>
-<meta name="description" content="Browse old Nagaland and Kerala lottery results archive. Download previous lottery result PDFs. Complete history of Lottery Sambad results.">
+<title>Lottery Sambad Old Result | Nagaland Lottery Result Archive 2026</title>
+<meta name="description" content="Lottery Sambad old result archive. Check Nagaland lottery old results for 1PM, 6PM and 8PM. Month-wise complete history.">
 <meta name="robots" content="index,follow">
 <link rel="canonical" href="https://harshsharmaoo7.github.io/Lottery-Bot/archive.html">
 <link rel="stylesheet" href="style.css">
 <style>
-.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center}
-.filt-btn{padding:7px 14px;border-radius:999px;font-size:.78rem;font-weight:600;
-  border:1px solid var(--border);background:var(--card);color:var(--muted);
-  cursor:pointer;transition:all var(--ease)}
-.filt-btn.on,.filt-btn:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
-.arch-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
-.arch-item{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);
-  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
-  gap:12px;flex-wrap:wrap;transition:all var(--ease)}
-.arch-item:hover{border-color:var(--brand2);box-shadow:var(--sh1)}
-.arch-info{flex:1;min-width:0}
-.arch-name{font-size:.9rem;font-weight:700;color:var(--text);margin-bottom:2px}
-.arch-meta{font-size:.75rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
-.arch-badge{display:inline-block;font-size:.62rem;background:var(--brand);
-  color:#fff;padding:2px 7px;border-radius:999px;font-weight:700}
-.arch-badge.green{background:var(--green)}
-.arch-badge.gold{background:var(--gold);color:var(--branddk)}
-.arch-btns{display:flex;gap:6px;flex-shrink:0}
-.load-more{display:flex;justify-content:center;padding:16px 0}
-#no-results{display:none;text-align:center;padding:40px;color:var(--muted)}
+/* ── Archive specific styles ── */
+.arch-search {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 28px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+}
+.arch-search label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.arch-search select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: .85rem;
+  cursor: pointer;
+}
+.arch-search button {
+  padding: 8px 20px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.arch-search button:hover { background: var(--brand2); }
+
+.month-block { margin-bottom: 32px; }
+.month-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text);
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+
+/* Competitor-style table */
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+  font-size: .85rem;
+}
+.result-table th {
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+  text-align: center;
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.result-table td {
+  text-align: center;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.result-table tr:hover td { background: var(--card); }
+
+/* Date link */
+.date-link {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: .83rem;
+  display: inline-block;
+  padding: 2px 0;
+}
+.date-link:hover { text-decoration: underline; color: var(--brand2); }
+.date-link.no-data {
+  color: var(--muted);
+  font-weight: 400;
+  cursor: default;
+  text-decoration: none;
+}
+
+/* Typo in competitor (20226 etc) — we avoid that */
+.arch-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+/* Loading */
+#arch-loading {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+/* Summary bar */
+.arch-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: .78rem;
+  color: var(--muted);
+  margin-bottom: 16px;
+  align-items: center;
+}
+.arch-summary strong { color: var(--text); }
 </style>
 </head>
 <body>
@@ -63,7 +159,7 @@
   <nav class="dnav" aria-label="Main navigation">
     <ul>
       <li><a href="index.html">Home</a></li>
-      <li><a href="nagaland-lottery-result-today-1pm.html">1PM</a></li>
+      <li><a href="nagaland-lottery-result-today-1pm.html">1PM</a><span class="nav-badge nagaland-badge">Nagaland</span></li>
       <li><a href="nagaland-lottery-result-today-6pm.html">6PM</a></li>
       <li><a href="nagaland-lottery-result-today-8pm.html">8PM</a></li>
       <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
@@ -75,11 +171,12 @@
     <span></span><span></span><span></span>
   </button>
 </div></header>
+
 <div class="bc-wrap"><div class="wrap">
   <nav class="bc">
     <a href="index.html">Home</a>
     <span class="bc-sep">›</span>
-    <span class="bc-cur">Old Results Archive</span>
+    <span class="bc-cur">Lottery Sambad Old Result</span>
   </nav>
 </div></div>
 
@@ -91,49 +188,46 @@
 <div class="layout">
 <main id="main" role="main">
 
-  <div class="card">
-    <div class="card-hdr">
-      <h1 style="color:#fff;font-size:1.1rem;font-weight:800;margin:0;">
-        📋 Old Lottery Results Archive
-      </h1>
-      <span class="dbadge" id="total-count">Loading…</span>
-    </div>
-    <div class="card-body">
+  <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:20px;text-align:center;">
+    Lottery Sambad Old Result
+  </h1>
 
-      <!-- Filters -->
-      <div class="filter-bar">
-        <span style="font-size:.78rem;font-weight:600;color:var(--muted);">Filter:</span>
-        <button class="filt-btn on" onclick="filterResults('all',this)">All</button>
-        <button class="filt-btn" onclick="filterResults('nagaland',this)">Nagaland</button>
-        <button class="filt-btn" onclick="filterResults('kerala',this)">Kerala</button>
-        <button class="filt-btn" onclick="filterResults('1PM',this)">1PM</button>
-        <button class="filt-btn" onclick="filterResults('6PM',this)">6PM</button>
-        <button class="filt-btn" onclick="filterResults('8PM',this)">8PM</button>
-      </div>
-
-      <!-- Loading -->
-      <div id="arch-loading" style="text-align:center;padding:40px;">
-        <div class="spin" style="margin:0 auto 12px;width:26px;height:26px;border-width:3px;" aria-hidden="true"></div>
-        <p style="color:var(--muted);">Loading results…</p>
-      </div>
-
-      <!-- Results list -->
-      <div class="arch-list" id="arch-list"></div>
-
-      <!-- No results -->
-      <div id="no-results" class="err-box">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 10.607z"/></svg>
-        <p>No results found for this filter.</p>
-      </div>
-
-      <!-- Load more -->
-      <div class="load-more" id="load-more" style="display:none;">
-        <button class="btn btn-out" onclick="loadMore()">Load More Results</button>
-      </div>
-    </div>
+  <!-- Search by date + time -->
+  <div class="arch-search">
+    <label for="sel-date">Date:</label>
+    <select id="sel-date"></select>
+    <label for="sel-time">Time:</label>
+    <select id="sel-time">
+      <option value="">--Select Time--</option>
+      <option value="1PM">1:00 PM</option>
+      <option value="6PM">6:00 PM</option>
+      <option value="8PM">8:00 PM</option>
+    </select>
+    <button onclick="doSearch()">Search</button>
   </div>
 
-  <div class="notice" role="note">
+  <!-- Loading state -->
+  <div id="arch-loading">
+    <div class="spin" style="margin:0 auto 12px;width:26px;height:26px;border-width:3px;" aria-hidden="true"></div>
+    <p style="color:var(--muted);">Loading results…</p>
+  </div>
+
+  <!-- Month-wise tables rendered here -->
+  <div id="arch-content" style="display:none;">
+    <div class="arch-summary" id="arch-summary"></div>
+    <div id="month-blocks"></div>
+  </div>
+
+  <!-- Search result view -->
+  <div id="search-result" style="display:none;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <button onclick="clearSearch()" style="background:var(--brand);color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.82rem;">← Back to Archive</button>
+      <span id="search-label" style="font-size:.9rem;font-weight:600;color:var(--muted);"></span>
+    </div>
+    <div id="search-items"></div>
+  </div>
+
+  <div class="notice" role="note" style="margin-top:24px;">
     <strong>⚠️ Disclaimer</strong>
     These historical results are for reference only. Always verify results at the official government lottery websites. We are not affiliated with any lottery department.
   </div>
@@ -182,9 +276,9 @@
     <div class="ft-col">
       <h4>Info</h4>
       <ul class="ft-links">
-        <li><a href="about.html">About</a></li>
-        <li><a href="disclaimer.html">Disclaimer</a></li>
-        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="#" onclick="return false;">About</a></li>
+        <li><a href="#" onclick="return false;">Disclaimer</a></li>
+        <li><a href="#" onclick="return false;">Privacy</a></li>
       </ul>
     </div>
   </div>
@@ -197,110 +291,212 @@
 <script>window.PAGE_CONFIG = { draw: null, state: 'nagaland' };</script>
 <script src="app.js"></script>
 <script>
-(function(){
-  var SITE_BASE = 'https://harshsharmaoo7.github.io/Lottery-Bot/';
-  var RAW_BASE  = 'https://raw.githubusercontent.com/harshsharmaOO7/Lottery-Bot/main/';
-  var GD_VIEWER = 'https://docs.google.com/gview?embedded=true&url=';
-  var allItems  = [];
-  var filtered  = [];
-  var shown     = 0;
-  var PER_PAGE  = 20;
+(function () {
+'use strict';
 
-  function pdfUrl(rec){
-    if(rec.pdf && rec.pdf.startsWith('http')) return rec.pdf;
-    if(rec.pdf) return RAW_BASE + rec.pdf;
-    return rec.pdf_url || '';
+var RAW_BASE  = 'https://raw.githubusercontent.com/harshsharmaOO7/Lottery-Bot/main/';
+var GD_VIEWER = 'https://docs.google.com/gview?embedded=true&url=';
+
+var MONTH_NAMES = ['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
+
+// keyed as "YYYY-MM-DD:DRAW" → record
+var dataIndex = {};
+var allDates  = []; // sorted desc unique dates
+var allData   = { nagaland: [] };
+
+// ── Helpers ────────────────────────────────────────────────────────
+function fmtDateLong(d) {
+  if (!d) return '';
+  var p = d.split('-');
+  return parseInt(p[2]) + ' ' + MONTH_NAMES[parseInt(p[1]) - 1] + ' ' + p[0];
+}
+function fmtDateShort(d) {
+  if (!d) return '';
+  var p = d.split('-');
+  return parseInt(p[2]) + ' ' + MONTH_NAMES[parseInt(p[1]) - 1].substring(0,3) + ' ' + p[0];
+}
+function monthKey(d) {
+  // "2026-04-29" → "2026-04"
+  return d.substring(0, 7);
+}
+function monthLabel(mk) {
+  // "2026-04" → "April 2026"
+  var p = mk.split('-');
+  return MONTH_NAMES[parseInt(p[1]) - 1] + ' ' + p[0];
+}
+function imgURL(rec) {
+  if (!rec || !rec.image) return '';
+  if (rec.image.startsWith('http')) return rec.image;
+  return RAW_BASE + rec.image;
+}
+function pdfURL(rec) {
+  if (!rec) return '';
+  if (rec.pdf && rec.pdf.startsWith('http')) return rec.pdf;
+  if (rec.pdf) return RAW_BASE + rec.pdf;
+  return '';
+}
+
+// ── Build date dropdown ────────────────────────────────────────────
+function buildDateDropdown() {
+  var sel = document.getElementById('sel-date');
+  sel.innerHTML = '<option value="">--Select Date--</option>';
+  allDates.forEach(function (d) {
+    var opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = fmtDateLong(d);
+    sel.appendChild(opt);
+  });
+}
+
+// ── Search handler ─────────────────────────────────────────────────
+window.doSearch = function () {
+  var date = document.getElementById('sel-date').value;
+  var draw = document.getElementById('sel-time').value;
+
+  if (!date && !draw) {
+    clearSearch();
+    return;
   }
-  function fmtDate(d){
-    if(!d) return '';
-    var p = d.split('-');
-    if(p.length===3){
-      var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return p[2]+' '+m[parseInt(p[1])-1]+' '+p[0];
+
+  var matches = [];
+  allData.nagaland.forEach(function (r) {
+    var dateMatch = !date || r.date === date;
+    var drawMatch = !draw || r.draw === draw;
+    if (dateMatch && drawMatch) matches.push({ st: 'nagaland', rec: r });
+  });
+
+  var label = '';
+  if (date) label += fmtDateLong(date);
+  if (draw) label += (label ? ' · ' : '') + draw + ' Draw';
+
+  document.getElementById('search-label').textContent = label + ' — ' + matches.length + ' result(s)';
+  document.getElementById('arch-content').style.display = 'none';
+  document.getElementById('search-result').style.display = 'block';
+  document.getElementById('search-items').innerHTML = matches.length
+    ? matches.map(function (it) { return buildCard(it.rec); }).join('')
+    : '<div class="arch-empty">No results found for this filter.</div>';
+};
+
+window.clearSearch = function () {
+  document.getElementById('sel-date').value = '';
+  document.getElementById('sel-time').value = '';
+  document.getElementById('search-result').style.display = 'none';
+  document.getElementById('arch-content').style.display = 'block';
+};
+
+// ── Build a result card (for search results) ───────────────────────
+function buildCard(rec) {
+  var iu  = imgURL(rec);
+  var pu  = pdfURL(rec);
+  var nm  = rec.draw_name || ('Nagaland ' + rec.draw);
+  var dl  = pu ? '<a class="btn btn-gold" href="'+pu+'" download style="padding:6px 12px;font-size:.75rem;">⬇ PDF</a>' : '';
+  var vw  = pu ? '<a class="btn btn-blue" href="'+GD_VIEWER+encodeURIComponent(pu)+'" target="_blank" rel="noopener" style="padding:6px 12px;font-size:.75rem;">👁 View</a>' : '';
+  var imgHtml = iu ? '<div style="margin-top:12px;text-align:center;"><img src="'+iu+'" alt="'+nm+' '+fmtDateLong(rec.date)+'" style="max-width:100%;border-radius:8px;" loading="lazy"></div>' : '';
+  return '<div class="card" style="margin-bottom:16px;">' +
+    '<div class="card-hdr"><h3 style="color:#fff;font-size:.95rem;font-weight:700;margin:0;">'+nm+'</h3>' +
+    '<span class="dbadge">'+fmtDateShort(rec.date)+' · '+rec.draw+'</span></div>' +
+    '<div class="card-body">' + imgHtml +
+    '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">'+dl+vw+'</div>' +
+    '</div></div>';
+}
+
+// ── Build month-wise table (competitor format) ─────────────────────
+function buildMonthTable(dates, monthK) {
+  // dates = sorted desc array of "YYYY-MM-DD" for this month
+  // Sort asc for display (oldest row first = most natural for tables)
+  var sorted = dates.slice().sort(); // asc
+
+  var rows = sorted.map(function (d) {
+    var rec1 = dataIndex[d + ':1PM'];
+    var rec6 = dataIndex[d + ':6PM'];
+    var rec8 = dataIndex[d + ':8PM'];
+
+    function cellHTML(rec, draw) {
+      var label = fmtDateLong(d);
+      if (!rec || !rec.image) {
+        // No data — show plain text (not a link)
+        return '<td><span class="date-link no-data">' + label + '</span></td>';
+      }
+      var iu = imgURL(rec);
+      var pu = pdfURL(rec);
+      var href = iu || pu || '#';
+      return '<td><a class="date-link" href="' + href + '" target="_blank" rel="noopener" title="'+
+        (rec.draw_name||'Nagaland '+draw)+' — '+label+'">' + label + '</a></td>';
     }
-    return d;
-  }
 
-  function buildItem(st, rec){
-    var pu = pdfUrl(rec);
-    var name = rec.draw_name || (st+' '+rec.draw);
-    var vClass = rec.verified ? 'green' : '';
-    var vText  = rec.verified ? '✓ Verified' : 'Unverified';
-    var dl = pu ? '<a class="btn btn-gold" href="'+pu+'" download style="padding:6px 12px;font-size:.75rem;">⬇ PDF</a>' : '';
-    var view = pu ?
-      '<a class="btn btn-blue" href="'+GD_VIEWER+encodeURIComponent(pu)+'" target="_blank" rel="noopener" style="padding:6px 12px;font-size:.75rem;">👁 View</a>' : '';
-    return '<div class="arch-item" data-state="'+st+'" data-draw="'+rec.draw+'">' +
-      '<div class="arch-info">' +
-        '<div class="arch-name">'+name+'</div>' +
-        '<div class="arch-meta">' +
-          '<span>'+fmtDate(rec.date)+'</span>' +
-          '<span>'+rec.draw+' Draw</span>' +
-          '<span class="arch-badge">'+st.toUpperCase()+'</span>' +
-          '<span class="arch-badge '+vClass+'">'+vText+'</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="arch-btns">'+dl+view+'</div>' +
-    '</div>';
-  }
+    return '<tr>' + cellHTML(rec1,'1PM') + cellHTML(rec6,'6PM') + cellHTML(rec8,'8PM') + '</tr>';
+  }).join('');
 
-  function render(){
-    var list = document.getElementById('arch-list');
-    var noRes = document.getElementById('no-results');
-    var lm   = document.getElementById('load-more');
-    if(!filtered.length){
-      list.innerHTML = '';
-      if(noRes) noRes.style.display = 'block';
-      if(lm)    lm.style.display = 'none';
-      return;
-    }
-    if(noRes) noRes.style.display = 'none';
-    var chunk = filtered.slice(0, shown);
-    list.innerHTML = chunk.map(function(it){ return buildItem(it.st, it.rec); }).join('');
-    if(lm) lm.style.display = (shown < filtered.length) ? 'flex' : 'none';
-  }
+  return '<table class="result-table">' +
+    '<thead><tr>' +
+      '<th>1:00 PM</th>' +
+      '<th>6:00 PM</th>' +
+      '<th>8:00 PM</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table>';
+}
 
-  window.filterResults = function(val, btn){
-    document.querySelectorAll('.filt-btn').forEach(function(b){ b.classList.remove('on'); });
-    btn.classList.add('on');
-    if(val === 'all'){
-      filtered = allItems.slice();
-    } else {
-      filtered = allItems.filter(function(it){
-        return it.st === val || it.rec.draw === val;
-      });
-    }
-    shown = PER_PAGE;
-    render();
-  };
+// ── Main render ────────────────────────────────────────────────────
+function renderArchive() {
+  // Group dates by month
+  var monthMap = {};  // "2026-04" → ["2026-04-30", "2026-04-29", ...]
+  allDates.forEach(function (d) {
+    var mk = monthKey(d);
+    if (!monthMap[mk]) monthMap[mk] = [];
+    monthMap[mk].push(d);
+  });
 
-  window.loadMore = function(){
-    shown += PER_PAGE;
-    render();
-  };
+  // Sort months desc
+  var months = Object.keys(monthMap).sort().reverse();
 
-  fetch('results.json?v='+Date.now())
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      document.getElementById('arch-loading').style.display = 'none';
-      allItems = [];
-      var states = ['nagaland','kerala'];
-      states.forEach(function(st){
-        (data[st]||[]).forEach(function(r){ allItems.push({st:st, rec:r}); });
-      });
-      // Sort newest first
-      allItems.sort(function(a,b){
-        return (b.rec.date+b.rec.draw) > (a.rec.date+a.rec.draw) ? 1 : -1;
-      });
-      var countEl = document.getElementById('total-count');
-      if(countEl) countEl.textContent = allItems.length + ' Results';
-      filtered = allItems.slice();
-      shown = PER_PAGE;
-      render();
-    })
-    .catch(function(err){
-      document.getElementById('arch-loading').innerHTML =
-        '<div class="err-box"><p>Could not load results. <button class="btn btn-blue" onclick="location.reload()">Retry</button></p></div>';
+  var html = '';
+  months.forEach(function (mk) {
+    html += '<div class="month-block">' +
+      '<div class="month-title">' + monthLabel(mk) + '</div>' +
+      buildMonthTable(monthMap[mk], mk) +
+      '</div>';
+  });
+
+  document.getElementById('month-blocks').innerHTML = html || '<div class="arch-empty">No results yet. Bot will populate data after first run.</div>';
+
+  // Summary bar
+  var total = allData.nagaland.length;
+  var withImg = allData.nagaland.filter(function(r){ return r.image; }).length;
+  document.getElementById('arch-summary').innerHTML =
+    '<strong>' + total + '</strong> records · ' +
+    '<strong>' + withImg + '</strong> with images · ' +
+    '<strong>' + months.length + '</strong> month(s)';
+
+  document.getElementById('arch-loading').style.display  = 'none';
+  document.getElementById('arch-content').style.display  = 'block';
+}
+
+// ── Fetch + init ───────────────────────────────────────────────────
+fetch('results.json?v=' + Date.now(), { cache: 'no-store' })
+  .then(function (r) { return r.json(); })
+  .then(function (data) {
+    allData = data;
+
+    // Build index and unique dates
+    var dateSet = {};
+    (data.nagaland || []).forEach(function (r) {
+      dataIndex[r.date + ':' + r.draw] = r;
+      dateSet[r.date] = true;
     });
+
+    allDates = Object.keys(dateSet).sort().reverse();
+
+    buildDateDropdown();
+    renderArchive();
+  })
+  .catch(function (err) {
+    document.getElementById('arch-loading').innerHTML =
+      '<div class="err-box"><p>Could not load results.<br>' +
+      '<button class="btn btn-blue" onclick="location.reload()" style="margin-top:8px;">🔄 Retry</button></p></div>';
+  });
+
 })();
 </script>
 </body>

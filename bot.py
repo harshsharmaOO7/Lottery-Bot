@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """
-bot.py — Lottery Sambad Daily Scraper (v3 - Fixed)
-====================================================
-Changes from v2:
-  - Stores FULL https:// image URL in results.json (not local path)
-  - Also downloads image locally to images/ folder as backup
-  - MAX_HISTORY = 90 (was 30)
-  - Fixed draw detection for all 3 draws
-  - Fixed date handling so every draw of every date is stored
+bot.py v4 — Lottery Sambad Daily Scraper
+==========================================
+Key features:
+  - Retries scraping until TODAY's image is found (max 2 hours, every 5 min)
+  - Downloads image locally to images/ folder
+  - Stores full https:// URL as fallback if download fails
+  - MAX_HISTORY = 90
+  - No prefilled / hardcoded data — pure scrape only
 
 Run modes:
-  python bot.py              → auto-detect draw from IST time
-  python bot.py --draw 1PM   → specific draw
-  python bot.py --draw all   → all 3 draws (use for manual backfill)
-  python bot.py --draw all --date 2026-04-29  → specific date
+  python bot.py                      → auto-detect draw from IST time, retry until found
+  python bot.py --draw 1PM           → specific draw, retry until found
+  python bot.py --draw all           → all 3 draws (backfill mode, no retry)
+  python bot.py --draw all --date 2026-04-29  → specific date, no retry
+  python bot.py --draw 1PM --no-retry → single attempt, no retry loop
 """
 import sys, re, json, time, logging, argparse, datetime, requests, shutil
 from pathlib import Path
@@ -26,9 +27,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("bot")
 
-RESULTS_FILE = Path("results.json")
-IMAGES_DIR   = Path("images")
-MAX_HISTORY  = 90   # 3 draws × 30 days
+RESULTS_FILE  = Path("results.json")
+IMAGES_DIR    = Path("images")
+MAX_HISTORY   = 90        # 3 draws × 30 days
+RETRY_EVERY   = 300       # 5 minutes between retries
+MAX_WAIT_SEC  = 7200      # 2 hours max wait (after that, give up)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -82,35 +85,44 @@ def get_draw_name(draw, dt=None):
 def fetch_page(url):
     for attempt in range(1, 4):
         try:
-            log.info(f"Fetching (attempt {attempt}): {url}")
             r = requests.get(url, headers=HEADERS, timeout=20)
             r.raise_for_status()
-            log.info(f"OK — {len(r.text):,} chars")
+            log.info(f"Fetched {len(r.text):,} chars from {url[:60]}")
             return BeautifulSoup(r.text, "html.parser")
         except Exception as e:
-            log.warning(f"Attempt {attempt} failed: {e}")
-            time.sleep(3 * attempt)
+            log.warning(f"Fetch attempt {attempt} failed: {e}")
+            time.sleep(5 * attempt)
     return None
 
 # ── Image extraction ───────────────────────────────────────────────────────
 def is_thumbnail(url):
     return bool(re.search(r"-\d{2,3}x\d{2,3}\.", url))
 
-def today_in_alt(alt, ist_dt):
+def date_in_alt(alt, ist_dt):
+    """Check if the image alt text contains today's date in any common format."""
     months = ["january","february","march","april","may","june",
               "july","august","september","october","november","december"]
-    alt_l = alt.lower()
+    alt_l  = alt.lower()
+    day    = str(ist_dt.day)
+    dayz   = str(ist_dt.day).zfill(2)
+    mon    = months[ist_dt.month - 1]
+    yr     = str(ist_dt.year)
+    yr2    = yr[-2:]
     patterns = [
-        f"{ist_dt.day}-{months[ist_dt.month-1]}-{ist_dt.year}",
-        f"{months[ist_dt.month-1]}-{ist_dt.day}-{ist_dt.year}",
-        f"{months[ist_dt.month-1]} {ist_dt.day} {ist_dt.year}",
-        f"{ist_dt.day} {months[ist_dt.month-1]} {ist_dt.year}",
-        f"{str(ist_dt.day).zfill(2)}/{str(ist_dt.month).zfill(2)}/{ist_dt.year}",
+        f"{day}-{mon}-{yr}", f"{dayz}-{mon}-{yr}",
+        f"{mon}-{day}-{yr}", f"{mon} {day} {yr}",
+        f"{day} {mon} {yr}", f"{dayz}/{str(ist_dt.month).zfill(2)}/{yr}",
+        f"{dayz}/{str(ist_dt.month).zfill(2)}/{yr2}",
+        f"{day}/{str(ist_dt.month)}/{yr}",
     ]
     return any(p in alt_l for p in patterns)
 
 def extract_image(soup, draw, ist_dt):
-    # Strategy 1: confirmed figure pattern from real HTML
+    """
+    Extract result image URL from page.
+    Returns (url, is_todays_image) tuple.
+    """
+    # Strategy 1: confirmed <figure class="aligncenter size-full"> pattern
     fig = soup.find("figure", class_=lambda c: c and "aligncenter" in c and "size-full" in c)
     if fig:
         img = fig.find("img")
@@ -118,12 +130,11 @@ def extract_image(soup, draw, ist_dt):
             src = img.get("src", "").strip()
             alt = img.get("alt", "").strip()
             if src and "wp-content/uploads" in src and not is_thumbnail(src):
-                match = today_in_alt(alt, ist_dt)
-                log.info(f"[S1] src: {src[:90]} | date_match: {match}")
-                return src
+                is_today = date_in_alt(alt, ist_dt)
+                log.info(f"[S1] Found image | today={is_today} | alt: {alt[:60]}")
+                return src, is_today
 
     # Strategy 2: scored scan
-    log.info("[S2] Scanning all wp-content images...")
     draw_num = draw.replace("PM", "")
     candidates = []
     for img in soup.find_all("img", src=True):
@@ -136,25 +147,24 @@ def extract_image(soup, draw, ist_dt):
         if any(x in src.lower() for x in ["logo", "banner", "favicon", "icon", "sponsor"]):
             continue
         score = 0
-        if any(k in alt for k in ["sambad", "result", "winner", "lottery", "dear", "nagaland"]):
+        if any(k in alt for k in ["sambad", "result", "lottery", "dear", "nagaland"]):
             score += 4
         if draw_num in alt:
             score += 3
-        if today_in_alt(alt, ist_dt):
-            score += 5
-        if src.endswith((".webp", ".jpg", ".jpeg", ".png")):
+        if date_in_alt(alt, ist_dt):
+            score += 8
+        if src.endswith((".webp", ".jpg", ".jpeg")):
             score += 1
         if score > 0:
-            candidates.append((score, src))
+            candidates.append((score, src, date_in_alt(alt, ist_dt)))
 
     if candidates:
         candidates.sort(reverse=True)
-        best = candidates[0][1]
-        log.info(f"[S2] Best (score={candidates[0][0]}): {best[:90]}")
-        return best
+        best_score, best_src, best_is_today = candidates[0]
+        log.info(f"[S2] Best (score={best_score}, today={best_is_today}): {best_src[:80]}")
+        return best_src, best_is_today
 
-    log.warning("No image found on page")
-    return None
+    return None, False
 
 def extract_pdf(soup):
     dl = soup.find("a", class_=lambda c: c and "download_btn" in c)
@@ -168,16 +178,16 @@ def extract_pdf(soup):
             return href
     return None
 
-# ── Image download (local backup) ─────────────────────────────────────────
+# ── Image download ─────────────────────────────────────────────────────────
 def download_image(img_url, draw, date):
-    """Download image locally to images/ folder as backup."""
+    """Download image to local images/ folder. Returns local path or None."""
     IMAGES_DIR.mkdir(exist_ok=True)
-    ext = "webp" if img_url.endswith(".webp") else "jpg"
+    ext        = "webp" if img_url.lower().endswith(".webp") else "jpg"
     local_name = f"nagaland-{draw.lower()}-{date}.{ext}"
     local_path = IMAGES_DIR / local_name
 
-    if local_path.exists():
-        log.info(f"Image already downloaded: {local_name}")
+    if local_path.exists() and local_path.stat().st_size > 10000:
+        log.info(f"Already downloaded: {local_name}")
         return local_name
 
     try:
@@ -190,7 +200,9 @@ def download_image(img_url, draw, date):
         log.info(f"Downloaded: {local_name} ({size_kb} KB)")
         return local_name
     except Exception as e:
-        log.warning(f"Image download failed (will use URL): {e}")
+        log.warning(f"Download failed — will store URL: {e}")
+        if local_path.exists():
+            local_path.unlink()
         return None
 
 # ── JSON I/O ───────────────────────────────────────────────────────────────
@@ -198,8 +210,7 @@ def load_results():
     if RESULTS_FILE.exists():
         try:
             data = json.loads(RESULTS_FILE.read_text(encoding="utf-8"))
-            n = len(data.get("nagaland", []))
-            log.info(f"Loaded results.json — {n} nagaland records")
+            log.info(f"Loaded results.json — {len(data.get('nagaland', []))} records")
             return data
         except Exception as e:
             log.error(f"results.json error: {e}")
@@ -209,42 +220,87 @@ def save_results(data):
     tmp = RESULTS_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     tmp.replace(RESULTS_FILE)
-    log.info(f"✓ Saved ({RESULTS_FILE.stat().st_size:,} bytes)")
+    log.info(f"✓ Saved results.json ({RESULTS_FILE.stat().st_size:,} bytes)")
 
-# ── Draw runner ────────────────────────────────────────────────────────────
-def run_draw(draw, date, results):
-    log.info(f"━━━━ {draw} | {date} ━━━━")
+# ── Single scrape attempt ─────────────────────────────────────────────────
+def scrape_once(draw, date, ist_dt, need_today):
+    """
+    Try to scrape draw result once.
+    Returns: (image_url, is_todays, pdf_url) or (None, False, None) on failure.
+    """
     soup = fetch_page(SOURCE_PAGES[draw])
     if not soup:
-        log.error(f"Page fetch failed for {draw}")
-        return False
+        return None, False, None
+
+    img_url, is_today = extract_image(soup, draw, ist_dt)
+    pdf_url = extract_pdf(soup)
+
+    if not img_url:
+        log.warning(f"No image found on page for {draw}")
+        return None, False, None
+
+    if need_today and not is_today:
+        log.warning(f"Image found but NOT today's ({date}) — will retry")
+        return None, False, None
+
+    return img_url, is_today, pdf_url
+
+# ── Draw runner with retry ─────────────────────────────────────────────────
+def run_draw(draw, date, results, retry=True):
+    """
+    Scrape a draw result. If retry=True, keeps retrying until today's image found.
+    Returns True if a record was added/updated, False otherwise.
+    """
+    log.info(f"{'='*20} {draw} | {date} {'='*20}")
 
     try:
         ist_dt = datetime.datetime.strptime(date, "%Y-%m-%d")
     except Exception:
         ist_dt = get_ist()
 
-    img_url = extract_image(soup, draw, ist_dt)
-    pdf_url = extract_pdf(soup)
+    # If today is the target date, we need today's image
+    need_today = (date == ist_date())
 
-    if not img_url:
-        log.warning(f"No image for {draw} on {date} — result not published yet?")
+    # Check if already have today's result (skip retry if so)
+    nagaland = results.setdefault("nagaland", [])
+    existing = next((r for r in nagaland if r.get("date") == date and r.get("draw") == draw), None)
+    if existing and existing.get("image") and not existing.get("seeded"):
+        log.info(f"Already have {date} {draw} — skipping")
         return False
 
-    # Download image locally (best-effort)
+    # ── Retry loop ────────────────────────────────────────────────
+    start_time = time.time()
+    attempt    = 0
+
+    while True:
+        attempt += 1
+        elapsed = int(time.time() - start_time)
+
+        log.info(f"Attempt #{attempt} | elapsed: {elapsed}s")
+        img_url, is_today, pdf_url = scrape_once(draw, date, ist_dt, need_today)
+
+        if img_url:
+            break  # Got a valid image
+
+        if not retry or not need_today:
+            log.warning(f"No image for {draw} {date} — giving up (retry={retry})")
+            return False
+
+        if elapsed >= MAX_WAIT_SEC:
+            log.error(f"Max wait {MAX_WAIT_SEC}s reached for {draw} {date} — giving up")
+            return False
+
+        wait = min(RETRY_EVERY, MAX_WAIT_SEC - elapsed)
+        log.info(f"Waiting {wait}s before next attempt… (max wait: {MAX_WAIT_SEC}s)")
+        time.sleep(wait)
+
+    # ── Got image — download locally ──────────────────────────────
     local_name = download_image(img_url, draw, date)
 
-    # Store: prefer local path, fallback to external URL
+    # Prefer local path, fallback to external URL
     image_store = f"images/{local_name}" if local_name else img_url
 
-    nagaland = results.setdefault("nagaland", [])
-
-    # Update if record exists for this exact date+draw
-    existing = next(
-        (r for r in nagaland if r.get("date") == date and r.get("draw") == draw),
-        None
-    )
-
+    # ── Update or insert record ───────────────────────────────────
     if existing:
         changed = False
         if existing.get("image") != image_store:
@@ -256,12 +312,11 @@ def run_draw(draw, date, results):
         if changed:
             existing["fetched_at"] = ist_ts()
             existing.pop("seeded", None)
-            log.info(f"✓ Updated: {date} {draw}")
+            log.info(f"✓ Updated existing: {date} {draw}")
         else:
-            log.info("No change needed")
+            log.info("Record unchanged")
         return changed
 
-    # New record
     record = {
         "date":       date,
         "draw":       draw,
@@ -274,37 +329,41 @@ def run_draw(draw, date, results):
     }
 
     nagaland.insert(0, record)
-
-    # Sort: newest date first, then 8PM > 6PM > 1PM within same date
     nagaland.sort(
         key=lambda x: (x["date"], DRAW_ORDER.get(x["draw"], 0)),
         reverse=True
     )
     results["nagaland"] = nagaland[:MAX_HISTORY]
 
-    log.info(f"✓ New record: {date} {draw} | {record['draw_name']}")
-    log.info(f"  Image: {image_store[:90]}")
-    log.info(f"  PDF  : {pdf_url or 'N/A'}")
+    log.info(f"✓ NEW: {date} {draw} | {record['draw_name']}")
+    log.info(f"  Image : {image_store[:90]}")
+    log.info(f"  PDF   : {pdf_url or 'N/A'}")
+    log.info(f"  Attempts: {attempt}")
     return True
 
 # ── Main ───────────────────────────────────────────────────────────────────
 def main():
-    p = argparse.ArgumentParser(description="Lottery Sambad daily result scraper v3")
-    p.add_argument("--draw", default=None, help="1PM / 6PM / 8PM / all")
-    p.add_argument("--date", default=None, help="YYYY-MM-DD (default: today IST)")
+    p = argparse.ArgumentParser(description="Lottery Sambad scraper v4")
+    p.add_argument("--draw",     default=None,  help="1PM / 6PM / 8PM / all")
+    p.add_argument("--date",     default=None,  help="YYYY-MM-DD (default: today IST)")
+    p.add_argument("--no-retry", action="store_true", help="Single attempt, no retry loop")
     args = p.parse_args()
 
     date = args.date or ist_date()
 
+    # 'all' mode — no retry (used for backfill)
     if args.draw == "all":
-        draws = ["1PM", "6PM", "8PM"]
+        draws  = ["1PM", "6PM", "8PM"]
+        retry  = False
     elif args.draw in ("1PM", "6PM", "8PM"):
-        draws = [args.draw]
+        draws  = [args.draw]
+        retry  = not args.no_retry
     else:
-        draws = [auto_draw()]
+        draws  = [auto_draw()]
+        retry  = not args.no_retry
 
     log.info("=" * 62)
-    log.info(f"Bot v3 | IST: {ist_ts()} | Date: {date} | Draws: {draws}")
+    log.info(f"bot.py v4 | IST: {ist_ts()} | Date: {date} | Draws: {draws} | Retry: {retry}")
     log.info("=" * 62)
 
     results     = load_results()
@@ -312,18 +371,22 @@ def main():
 
     for draw in draws:
         try:
-            if run_draw(draw, date, results):
+            if run_draw(draw, date, results, retry=retry):
                 any_changed = True
+        except KeyboardInterrupt:
+            log.warning("Interrupted — saving current state")
+            break
         except Exception as e:
-            log.error(f"Error processing {draw}: {e}")
-        time.sleep(2)
+            log.error(f"Unexpected error for {draw}: {e}")
+        if len(draws) > 1:
+            time.sleep(3)
 
     results["last_updated"]  = ist_ts()
     results["total_records"] = len(results.get("nagaland", []))
     save_results(results)
 
     log.info("=" * 62)
-    log.info("SUMMARY:")
+    log.info("FINAL SUMMARY:")
     for r in results.get("nagaland", [])[:9]:
         seeded = " [seed]" if r.get("seeded") else ""
         log.info(
@@ -333,7 +396,7 @@ def main():
         )
     log.info(f"  Changed: {any_changed} | Total: {results['total_records']}")
     log.info("=" * 62)
-    sys.exit(0)
+    sys.exit(0 if any_changed or not retry else 0)
 
 if __name__ == "__main__":
     main()
