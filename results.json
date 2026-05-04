@@ -2,6 +2,16 @@
   "nagaland": [
     {
       "date": "2026-05-04",
+      "draw": "8PM",
+      "draw_name": "Dear Flamingo Evening",
+      "image": "images/nagaland-8pm-2026-05-04.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/05/pdf_69f8afb1d6af7.pdf",
+      "source": "https://lotterysambadresult.in/lottery-sambad-today-result-08-00-pm.html",
+      "verified": true,
+      "fetched_at": "2026-05-04T20:43:58+05:30"
+    },
+    {
+      "date": "2026-05-04",
       "draw": "1PM",
       "draw_name": "Dear Dwarka Morning",
       "image": "images/nagaland-1pm-2026-05-04.webp",
@@ -12,6 +22,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-05-04T20:09:26+05:30",
-  "total_records": 1
+  "last_updated": "2026-05-04T20:43:58+05:30",
+  "total_records": 2
 }
