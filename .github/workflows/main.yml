@@ -1,193 +1,198 @@
-# .github/workflows/main.yml
-# ═══════════════════════════════════════════════════════════
-#  Lottery Bot — GitHub Actions Workflow
-#  ───────────────────────────────────────────────────────────
-#  TWO jobs:
-#    seed  — Run ONCE manually to load historical 90 records
-#    daily — Runs 3x daily at IST draw times automatically
-#
-#  Cron schedule (IST → UTC):
-#    1PM IST  = 07:35 UTC
-#    6PM IST  = 12:35 UTC
-#    8PM IST  = 14:40 UTC
-# ═══════════════════════════════════════════════════════════
-
+# .github/workflows/main.yml  ← lowercase .github (REQUIRED)
 name: Lottery Bot
 
 on:
   schedule:
-    - cron: "35 7  * * *"    # 1:05 PM IST  — after 1PM result
-    - cron: "35 12 * * *"    # 6:05 PM IST  — after 6PM result
-    - cron: "40 14 * * *"    # 8:10 PM IST  — after 8PM result
+    # Start scraping 5 min after draw time, retry every 30 min for 2 hrs
+    # 1PM IST = 07:30 UTC → start 07:35, retry at 08:05, 08:35, 09:05, 09:35
+    - cron: "35 7  * * *"   # 1PM IST — attempt 1
+    - cron: "05 8  * * *"   # +30 min retry
+    - cron: "35 8  * * *"   # +1hr retry
+    - cron: "05 9  * * *"   # +1.5hr retry
+    - cron: "35 9  * * *"   # +2hr retry (final)
+
+    # 6PM IST = 12:30 UTC → start 12:35, retry at 13:05, 13:35, 14:05, 14:35
+    - cron: "35 12 * * *"   # 6PM IST — attempt 1
+    - cron: "05 13 * * *"   # +30 min retry
+    - cron: "35 13 * * *"   # +1hr retry (note: conflicts with 8PM window — bot handles dedup)
+    - cron: "05 14 * * *"   # +1.5hr retry
+
+    # 8PM IST = 14:30 UTC → start 14:40, retry at 15:10, 15:40, 16:10, 16:40
+    - cron: "40 14 * * *"   # 8PM IST — attempt 1
+    - cron: "10 15 * * *"   # +30 min retry
+    - cron: "40 15 * * *"   # +1hr retry
+    - cron: "10 16 * * *"   # +1.5hr retry
+    - cron: "40 16 * * *"   # +2hr retry (final)
 
   workflow_dispatch:
     inputs:
       job:
-        description: "Which job: daily / seed"
+        description: "job: daily / seed / backfill"
         required: true
         default: "daily"
         type: choice
-        options:
-          - daily
-          - seed
+        options: [daily, seed, backfill]
       draw:
-        description: "Draw (daily only): 1PM / 6PM / 8PM / all"
+        description: "Draw: 1PM / 6PM / 8PM / all (daily only)"
         required: false
         default: "all"
       date:
-        description: "Date override (daily only): YYYY-MM-DD"
+        description: "Date: YYYY-MM-DD (blank = today IST)"
         required: false
         default: ""
+      backfill_days:
+        description: "Backfill: how many past days"
+        required: false
+        default: "30"
 
 permissions:
   contents: write
 
-# ── ONE-TIME SEED JOB ──────────────────────────────────────────────
 jobs:
+  # ─── SEED (run once for historical data) ────────────────────────────────
   seed:
-    name: Seed Historical Data (run once)
-    if: >
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.job == 'seed'
+    name: Seed Historical Data
+    if: github.event.inputs.job == 'seed'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: pip install requests beautifulsoup4 lxml -q
-
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: "pip" }
+      - run: pip install requests beautifulsoup4 lxml -q
       - name: Run seed_old.py
-        env:
-          PYTHONUNBUFFERED: "1"
+        env: { PYTHONUNBUFFERED: "1" }
         run: python seed_old.py
-
-      - name: Commit results.json
+      - name: Commit
         run: |
           git config user.name  "Lottery Bot"
           git config user.email "bot@noreply.github.com"
           git add results.json
-          if git diff --cached --quiet; then
-            echo "No changes — already seeded"
-          else
-            IST_TIME=$(python3 -c "
-          import datetime
-          ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-          print(ist.strftime('%d %b %Y %I:%M %p IST'))
-          ")
-            git commit -m "🌱 Seed: historical results loaded — ${IST_TIME}"
+          git diff --cached --quiet && echo "Already seeded" || (
+            IST=$(python3 -c "import datetime; ist=datetime.datetime.utcnow()+datetime.timedelta(hours=5,minutes=30); print(ist.strftime('%d %b %Y %I:%M %p IST'))")
+            git commit -m "🌱 Seed: historical results — $IST"
             git push
-            echo "✅ Seed complete and pushed"
-          fi
+          )
 
-  # ── DAILY SCRAPER JOB ────────────────────────────────────────────
+  # ─── DAILY (cron 3x/day with retries) ───────────────────────────────────
   daily:
     name: Fetch Today's Results
     if: >
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'daily')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15   # Bot itself handles 2hr retry internally in the cron approach
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: "pip" }
 
-      - name: Install dependencies
-        run: pip install requests beautifulsoup4 -q
+      - run: pip install requests beautifulsoup4 -q
 
-      - name: Determine draw from cron time
+      - name: Detect draw from cron hour
         id: draw
         run: |
-          HOUR=$(date -u +"%H")
-          if [ "$HOUR" = "07" ]; then
+          H=$(date -u +"%H")
+          # 07,08,09 = 1PM IST window
+          # 12,13,14 first half = 6PM IST window (but 14 also starts 8PM)
+          # 14 second half,15,16 = 8PM IST window
+          M=$(date -u +"%M")
+          if   [ "$H" = "07" ] || [ "$H" = "08" ] || [ "$H" = "09" ]; then
             echo "draw=1PM" >> $GITHUB_OUTPUT
-          elif [ "$HOUR" = "12" ]; then
+          elif [ "$H" = "12" ] || [ "$H" = "13" ]; then
             echo "draw=6PM" >> $GITHUB_OUTPUT
-          elif [ "$HOUR" = "14" ]; then
-            echo "draw=8PM" >> $GITHUB_OUTPUT
+          elif [ "$H" = "14" ] && [ "$M" -lt "35" ]; then
+            echo "draw=6PM" >> $GITHUB_OUTPUT
           else
-            echo "draw=" >> $GITHUB_OUTPUT
+            echo "draw=8PM" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run bot.py
-        env:
-          PYTHONUNBUFFERED: "1"
+      - name: Run bot.py (single attempt — cron handles retries)
+        env: { PYTHONUNBUFFERED: "1" }
         run: |
-          # Manual override takes priority
-          MANUAL_DRAW="${{ github.event.inputs.draw }}"
-          MANUAL_DATE="${{ github.event.inputs.date }}"
-          CRON_DRAW="${{ steps.draw.outputs.draw }}"
+          MDRAW="${{ github.event.inputs.draw }}"
+          MDATE="${{ github.event.inputs.date }}"
+          CDRAW="${{ steps.draw.outputs.draw }}"
 
-          ARGS=""
-
-          if [ -n "$MANUAL_DRAW" ] && [ "$MANUAL_DRAW" != "" ]; then
-            ARGS="--draw $MANUAL_DRAW"
-          elif [ -n "$CRON_DRAW" ]; then
-            ARGS="--draw $CRON_DRAW"
+          if [ -n "$MDRAW" ] && [ "$MDRAW" = "all" ]; then
+            # Manual all draws — no retry
+            ARGS="--draw all"
+            [ -n "$MDATE" ] && ARGS="$ARGS --date $MDATE"
+          elif [ -n "$MDRAW" ]; then
+            ARGS="--draw $MDRAW --no-retry"
+            [ -n "$MDATE" ] && ARGS="$ARGS --date $MDATE"
+          else
+            # Scheduled cron — single attempt (cron itself is the retry)
+            ARGS="--draw $CDRAW --no-retry"
           fi
 
-          if [ -n "$MANUAL_DATE" ] && [ "$MANUAL_DATE" != "" ]; then
-            ARGS="$ARGS --date $MANUAL_DATE"
-          fi
-
-          echo "Running: python bot.py $ARGS"
+          echo "▶ python bot.py $ARGS"
           python bot.py $ARGS
 
-      - name: Commit results.json if changed
+      - name: Commit if changed
         run: |
           git config user.name  "Lottery Bot"
           git config user.email "bot@noreply.github.com"
-          git add results.json
-          if git diff --cached --quiet; then
-            echo "No changes — result already current"
-          else
-            IST_TIME=$(python3 -c "
-          import datetime
-          ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-          print(ist.strftime('%d %b %Y %I:%M %p IST'))
-          ")
-            git commit -m "🎯 Auto: result updated — ${IST_TIME}"
+          git add results.json images/
+          git diff --cached --quiet && echo "No new data" || (
+            IST=$(python3 -c "import datetime; ist=datetime.datetime.utcnow()+datetime.timedelta(hours=5,minutes=30); print(ist.strftime('%d %b %Y %I:%M %p IST'))")
+            git commit -m "🎯 Result updated — $IST"
             git push
-            echo "✅ Pushed to repo"
-          fi
+            echo "✅ Pushed"
+          )
 
       - name: Summary
         if: always()
         run: |
-          echo "===== BOT SUMMARY ====="
-          if [ -f results.json ]; then
-            python3 -c "
+          [ -f results.json ] && python3 -c "
           import json, datetime
           ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5,minutes=30)
-          with open('results.json') as f:
-              d = json.load(f)
-          print(f'IST time     : {ist.strftime(\"%Y-%m-%d %H:%M\")}')
-          print(f'Last updated : {d.get(\"last_updated\", \"N/A\")}')
-          print(f'Total records: {d.get(\"total_records\", 0)}')
+          d = json.load(open('results.json'))
+          print(f'IST: {ist:%Y-%m-%d %H:%M} | Records: {d.get(\"total_records\",0)}')
           for r in d.get('nagaland',[])[:6]:
-              img = '✅' if r.get('image') else '❌'
-              pdf = '📄' if r.get('pdf') else '  '
-              seed = ' [seed]' if r.get('seeded') else ''
-              print(f'{img}{pdf} {r[\"date\"]} {r[\"draw\"]:3} | {r[\"draw_name\"]}{seed}')
+              print(f'  {\"✅\" if r.get(\"image\") else \"❌\"} {r[\"date\"]} {r[\"draw\"]:3} | {r[\"draw_name\"]}')
+          " || echo "results.json not found"
+
+  # ─── BACKFILL (manual — fill missing past days) ──────────────────────────
+  backfill:
+    name: Backfill Missing Days
+    if: github.event.inputs.job == 'backfill'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: "pip" }
+      - run: pip install requests beautifulsoup4 -q
+
+      - name: Backfill past N days
+        env: { PYTHONUNBUFFERED: "1" }
+        run: |
+          DAYS="${{ github.event.inputs.backfill_days }}"
+          python3 -c "
+          import datetime, subprocess, sys
+          ist  = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+          days = int('$DAYS' or '30')
+          print(f'Backfilling {days} days...')
+          for i in range(days, 0, -1):
+              d = (ist - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+              print(f'--- {d} ---')
+              subprocess.run([sys.executable, 'bot.py', '--draw', 'all', '--date', d,
+                              '--no-retry'], check=False)
           "
-          fi
-          echo "======================="
+
+      - name: Commit
+        run: |
+          git config user.name  "Lottery Bot"
+          git config user.email "bot@noreply.github.com"
+          git add results.json images/
+          git diff --cached --quiet && echo "No new data" || (
+            IST=$(python3 -c "import datetime; ist=datetime.datetime.utcnow()+datetime.timedelta(hours=5,minutes=30); print(ist.strftime('%d %b %Y %I:%M %p IST'))")
+            git commit -m "📦 Backfill: ${{ github.event.inputs.backfill_days }} days — $IST"
+            git push
+          )
