@@ -16,7 +16,6 @@
 </head>
 <body>
 
-<!-- Mobile Nav -->
 <div class="moverlay" id="moverlay" onclick="closeNav()" aria-hidden="true"></div>
 <nav class="mnav" id="mnav">
   <a href="index.html">🏠 Home</a>
@@ -27,83 +26,55 @@
   <a href="archive.html">📋 Old Results</a>
 </nav>
 
-<!-- Top bar -->
-<div class="topbar">
-  <div class="wrap">
-    <div style="display:flex;align-items:center;gap:6px;">
-      <span class="tb-badge">🔴 LIVE</span>
-      <span>Results at <strong>1PM · 6PM · 8PM</strong> IST</span>
+<div class="topbar"><div class="wrap">
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span class="tb-badge">🔴 LIVE</span>
+    <span>Results at <strong>1PM · 6PM · 8PM</strong> IST</span>
+  </div>
+  <div class="tb-right">
+    <span class="live-dot"></span>
+    <span id="clock">--:--:-- IST</span>
+  </div>
+</div></div>
+
+<header role="banner"><div class="wrap hdr">
+  <a href="index.html" class="logo">
+    <div class="logo-icon">🎱</div>
+    <div class="logo-text">
+      <strong>Lottery Sambad Result</strong>
+      <span>Updated 3× Daily · Official Result</span>
     </div>
-    <div class="tb-right">
-      <span class="live-dot"></span>
-      <span id="clock">--:--:-- IST</span>
-    </div>
-  </div>
-</div>
+  </a>
+  <nav class="dnav"><ul>
+    <li><a href="index.html" class="cur">Home</a></li>
+    <li><a href="nagaland-lottery-result-today-1pm.html">1PM <span class="nbadge">Nagaland</span></a></li>
+    <li><a href="nagaland-lottery-result-today-6pm.html">6PM</a></li>
+    <li><a href="nagaland-lottery-result-today-8pm.html">8PM</a></li>
+    <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
+    <li><a href="archive.html">Old Results</a></li>
+  </ul></nav>
+  <button class="hbtn" id="themeBtn" aria-label="Dark mode">🌙</button>
+  <button class="hbtn ham" id="hamBtn" aria-label="Menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</div></header>
 
-<!-- Header -->
-<header role="banner">
-  <div class="wrap hdr">
-    <a href="index.html" class="logo">
-      <div class="logo-icon">🎱</div>
-      <div class="logo-text">
-        <strong>Lottery Sambad Result</strong>
-        <span>Updated 3× Daily · Official Result</span>
-      </div>
-    </a>
-    <nav class="dnav">
-      <ul>
-        <li><a href="index.html" class="cur">Home</a></li>
-        <li><a href="nagaland-lottery-result-today-1pm.html">1PM <span class="nbadge">Nagaland</span></a></li>
-        <li><a href="nagaland-lottery-result-today-6pm.html">6PM</a></li>
-        <li><a href="nagaland-lottery-result-today-8pm.html">8PM</a></li>
-        <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
-        <li><a href="archive.html">Old Results</a></li>
-      </ul>
-    </nav>
-    <button class="hbtn" id="themeBtn" aria-label="Dark mode">🌙</button>
-    <button class="hbtn ham" id="hamBtn" aria-label="Menu" aria-expanded="false">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-</header>
+<div class="bc-wrap"><div class="wrap">
+  <nav class="bc"><span class="bc-cur">Home — All Lottery Results</span></nav>
+</div></div>
 
-<!-- Breadcrumb -->
-<div class="bc-wrap">
-  <div class="wrap">
-    <nav class="bc">
-      <span class="bc-cur">Home — All Lottery Results</span>
-    </nav>
-  </div>
-</div>
+<div class="drawtabs"><div class="drawtabs-inner">
+  <a href="nagaland-lottery-result-today-1pm.html" class="dt" id="tab-1pm"><strong>1:00 PM</strong>Morning</a>
+  <a href="nagaland-lottery-result-today-6pm.html" class="dt" id="tab-6pm"><strong>6:00 PM</strong>Evening</a>
+  <a href="nagaland-lottery-result-today-8pm.html" class="dt" id="tab-8pm"><strong>8:00 PM</strong>Night</a>
+  <a href="kerala-lottery-result-today.html" class="dt"><strong>Kerala</strong>3:00 PM</a>
+</div></div>
 
-<!-- Draw tabs -->
-<div class="drawtabs">
-  <div class="drawtabs-inner">
-    <a href="nagaland-lottery-result-today-1pm.html" class="dt" id="tab-1pm">
-      <strong>1:00 PM</strong>Morning
-    </a>
-    <a href="nagaland-lottery-result-today-6pm.html" class="dt" id="tab-6pm">
-      <strong>6:00 PM</strong>Evening
-    </a>
-    <a href="nagaland-lottery-result-today-8pm.html" class="dt" id="tab-8pm">
-      <strong>8:00 PM</strong>Night
-    </a>
-    <a href="kerala-lottery-result-today.html" class="dt">
-      <strong>Kerala</strong>3:00 PM
-    </a>
-  </div>
-</div>
+<div class="adwrap"><div class="wrap">
+  <div class="adph banner">Advertisement · 728×90</div>
+</div></div>
 
-<!-- Top Ad -->
-<div class="adwrap">
-  <div class="wrap">
-    <div class="adph banner">Advertisement · 728×90</div>
-  </div>
-</div>
-
-<div class="wrap">
-<div class="layout">
+<div class="wrap"><div class="layout">
 <main id="main" role="main">
 
   <!-- Loading -->
@@ -116,9 +87,7 @@
   <div id="error-state" class="card" style="display:none;">
     <div class="card-body" style="text-align:center;padding:40px;">
       <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
-      <p style="color:var(--muted);margin-bottom:16px;">
-        Result abhi available nahi hai.<br>Draw ke baad page refresh karein.
-      </p>
+      <p style="color:var(--muted);margin-bottom:16px;">Result abhi available nahi hai.<br>Draw ke baad page refresh karein.</p>
       <button class="btn btn-blue" onclick="location.reload()">🔄 Refresh</button>
     </div>
   </div>
@@ -131,13 +100,11 @@
     </div>
     <div class="card-body">
 
-      <!-- Status -->
       <div class="status-bar">
         <span id="last-updated" style="font-size:.75rem;color:var(--muted);"></span>
         <span id="verified-badge" class="verified" style="display:none;"></span>
       </div>
 
-      <!-- Draw links -->
       <div class="draw-links">
         <span>Also check:</span>
         <a href="nagaland-lottery-result-today-1pm.html" id="link-1pm">1PM Result</a>
@@ -146,7 +113,6 @@
         <a href="kerala-lottery-result-today.html">Kerala</a>
       </div>
 
-      <!-- Image -->
       <p class="sec-lbl">📸 Official Result Image</p>
       <div class="rimg-wrap" id="img-wrap">
         <div class="skel" id="img-skel"></div>
@@ -155,16 +121,14 @@
           style="display:none;width:100%;height:auto;"
           onload="onImgLoad(this)" onerror="onImgFail(this)">
       </div>
-      <div class="img-cap">
-        📄 Official result — <span id="res-source"></span>
-      </div>
 
-      <!-- Countdown -->
+      <!-- Source hidden — stored in hidden span, not shown to user -->
+      <span id="res-source" style="display:none;"></span>
+
       <div style="text-align:center;font-size:.78rem;color:var(--muted);margin:10px 0 16px;font-weight:600;">
         ⏱ <span id="countdown"></span>
       </div>
 
-      <!-- Buttons — only Download + Share -->
       <div class="btn-row">
         <a id="dl-btn" href="#" class="btn btn-gold" download style="display:none;">
           ⬇ Download Result Image
@@ -172,7 +136,6 @@
         <button class="btn btn-out" onclick="shareResult()">🔗 Share</button>
       </div>
 
-      <!-- Mid Ad -->
       <div style="text-align:center;margin:16px 0;">
         <div class="adph half">Advertisement</div>
       </div>
@@ -180,46 +143,9 @@
     </div>
   </article>
 
-  <!-- State cards -->
-  <section style="margin-bottom:20px;">
-    <p class="sec-h gold">🗺️ All State Lottery Results</p>
-    <div class="states-grid">
-      <a href="nagaland-lottery-result-today-1pm.html" class="sc">
-        <span class="sc-flag">🌅</span>
-        <span class="sc-name">Nagaland 1PM</span>
-        <span class="sc-sub">Morning Draw</span>
-        <span class="sc-time">1:00 PM Daily</span>
-      </a>
-      <a href="nagaland-lottery-result-today-6pm.html" class="sc">
-        <span class="sc-flag">🌆</span>
-        <span class="sc-name">Nagaland 6PM</span>
-        <span class="sc-sub">Evening Draw</span>
-        <span class="sc-time">6:00 PM Daily</span>
-      </a>
-      <a href="nagaland-lottery-result-today-8pm.html" class="sc">
-        <span class="sc-flag">🌙</span>
-        <span class="sc-name">Nagaland 8PM</span>
-        <span class="sc-sub">Night Draw</span>
-        <span class="sc-time">8:00 PM Daily</span>
-      </a>
-      <a href="kerala-lottery-result-today.html" class="sc">
-        <span class="sc-flag">🌴</span>
-        <span class="sc-name">Kerala</span>
-        <span class="sc-sub">State Lottery</span>
-        <span class="sc-time">3:00 PM Daily</span>
-      </a>
-      <a href="archive.html" class="sc">
-        <span class="sc-flag">📋</span>
-        <span class="sc-name">Old Results</span>
-        <span class="sc-sub">History Archive</span>
-        <span class="sc-time">All Dates</span>
-      </a>
-    </div>
-  </section>
-
-  <!-- Previous results -->
+  <!-- Recent results grid — no state cards above it -->
   <section>
-    <p class="sec-h">📋 Previous Results</p>
+    <p class="sec-h">📋 Recent Results</p>
     <div class="hist-grid" id="hist-grid">
       <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--muted);">
         <div class="spin" style="margin:0 auto 8px;"></div>Loading…
@@ -260,7 +186,6 @@
 
 </main>
 
-<!-- Sidebar -->
 <aside>
   <div class="sw">
     <div class="sw-ttl">Advertisement</div>
@@ -304,52 +229,47 @@
     <div style="padding:12px;"><div class="adph rect">Ad · 300×250</div></div>
   </div>
 </aside>
-</div>
-</div>
+</div></div>
 
-<!-- Footer -->
-<footer role="contentinfo">
-  <div class="wrap">
-    <div class="ft-top">
-      <div class="ft-brand">
-        <a href="index.html" class="logo">
-          <div class="logo-icon">🎱</div>
-          <div class="logo-text"><strong>Lottery Sambad Result</strong><span>Official Portal</span></div>
-        </a>
-        <p class="ft-desc">Nagaland State Lottery results at 1PM, 6PM & 8PM daily. Kerala lottery results. Automatically updated.</p>
-      </div>
-      <div class="ft-col">
-        <h4>Nagaland</h4>
-        <ul class="ft-links">
-          <li><a href="nagaland-lottery-result-today-1pm.html">1PM Result</a></li>
-          <li><a href="nagaland-lottery-result-today-6pm.html">6PM Result</a></li>
-          <li><a href="nagaland-lottery-result-today-8pm.html">8PM Result</a></li>
-          <li><a href="archive.html">Old Results</a></li>
-        </ul>
-      </div>
-      <div class="ft-col">
-        <h4>Other</h4>
-        <ul class="ft-links">
-          <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
-          <li><a href="archive.html">Archive</a></li>
-        </ul>
-      </div>
-      <div class="ft-col">
-        <h4>Info</h4>
-        <ul class="ft-links">
-          <li><a href="disclaimer.html">Disclaimer</a></li>
-          <li><a href="sitemap.xml">Sitemap</a></li>
-        </ul>
-      </div>
+<footer role="contentinfo"><div class="wrap">
+  <div class="ft-top">
+    <div class="ft-brand">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">🎱</div>
+        <div class="logo-text"><strong>Lottery Sambad Result</strong><span>Official Portal</span></div>
+      </a>
+      <p class="ft-desc">Nagaland State Lottery results at 1PM, 6PM & 8PM daily. Kerala lottery results. Automatically updated.</p>
     </div>
-    <div class="ft-btm">
-      <span>© <span id="yr">2026</span> Lottery Sambad Result. All Rights Reserved.</span>
-      <span>Not affiliated with any government lottery department.</span>
+    <div class="ft-col">
+      <h4>Nagaland</h4>
+      <ul class="ft-links">
+        <li><a href="nagaland-lottery-result-today-1pm.html">1PM Result</a></li>
+        <li><a href="nagaland-lottery-result-today-6pm.html">6PM Result</a></li>
+        <li><a href="nagaland-lottery-result-today-8pm.html">8PM Result</a></li>
+        <li><a href="archive.html">Old Results</a></li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h4>Other</h4>
+      <ul class="ft-links">
+        <li><a href="kerala-lottery-result-today.html">Kerala</a></li>
+        <li><a href="archive.html">Archive</a></li>
+      </ul>
+    </div>
+    <div class="ft-col">
+      <h4>Info</h4>
+      <ul class="ft-links">
+        <li><a href="disclaimer.html">Disclaimer</a></li>
+        <li><a href="sitemap.xml">Sitemap</a></li>
+      </ul>
     </div>
   </div>
-</footer>
+  <div class="ft-btm">
+    <span>© <span id="yr">2026</span> Lottery Sambad Result. All Rights Reserved.</span>
+    <span>Not affiliated with any government lottery department.</span>
+  </div>
+</div></footer>
 
-<!-- Page config: homepage = auto-detect draw from IST time -->
 <script>window.PAGE_CONFIG = { draw: null, state: 'nagaland' };</script>
 <script src="app.js"></script>
 </body>
