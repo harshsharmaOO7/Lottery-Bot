@@ -2,6 +2,16 @@
   "nagaland": [
     {
       "date": "2026-05-08",
+      "draw": "6PM",
+      "draw_name": "Dear Dasher Evening",
+      "image": "images/nagaland-6pm-2026-05-08.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/05/pdf_69fdda196c0b0.pdf",
+      "source": "https://lotterysambadresult.in/nagaland-state-lottery-sambad-today-7-pm-result.html",
+      "verified": true,
+      "fetched_at": "2026-05-08T19:54:40+05:30"
+    },
+    {
+      "date": "2026-05-08",
       "draw": "1PM",
       "draw_name": "Dear Meghna Morning",
       "image": "images/nagaland-1pm-2026-05-08.webp",
@@ -62,6 +72,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-05-08T16:24:16+05:30",
-  "total_records": 6
+  "last_updated": "2026-05-08T19:54:40+05:30",
+  "total_records": 7
 }
