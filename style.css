@@ -405,3 +405,7 @@ footer{background:var(--branddk);color:rgba(255,255,255,.75);margin-top:40px}
   .layout{grid-template-columns:1fr}
   .card{box-shadow:none;border:1px solid #ccc}
 }
+
+/* Single column layout — sidebar hatane ke baad */
+.layout { display: block; }
+.layout > main { max-width: 860px; margin: 0 auto; }
