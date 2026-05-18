@@ -1,21 +1,11 @@
 # .github/workflows/main.yml  ← lowercase .github REQUIRED
-# ═══════════════════════════════════════════════════════════
-#  ROOT CAUSE FIX:
-#  Old workflow: cron chalta tha → bot.py bina --draw ke → 
-#    auto_draw() IST time se detect karta → WRONG draw milta
-#    1PM cron (07:35 UTC = 13:05 IST) → auto_draw = "6PM" ❌
-#    6PM cron (12:35 UTC = 18:05 IST) → auto_draw = "8PM" ❌
-#    8PM cron (14:40 UTC = 20:10 IST) → auto_draw = "8PM" ✅
-#  Fix: Har cron explicitly --draw pass karta hai
-# ═══════════════════════════════════════════════════════════
-
 name: Lottery Bot
 
 on:
   schedule:
-    - cron: "35 7  * * *"   # 1PM IST draw  (07:35 UTC = 13:05 IST)
-    - cron: "35 12 * * *"   # 6PM IST draw  (12:35 UTC = 18:05 IST)
-    - cron: "40 14 * * *"   # 8PM IST draw  (14:40 UTC = 20:10 IST)
+    - cron: "25 7  * * *"   # 1PM draw — 12:55 PM IST
+    - cron: "25 12 * * *"   # 6PM draw —  5:55 PM IST
+    - cron: "25 14 * * *"   # 8PM draw —  7:55 PM IST
 
   workflow_dispatch:
     inputs:
@@ -30,7 +20,7 @@ on:
         required: false
         default: ""
       seed:
-        description: "Run seed_old.py first? (yes/no)"
+        description: "Seed 3-month history first? (yes/no)"
         required: false
         default: "no"
 
@@ -41,7 +31,7 @@ jobs:
   fetch-results:
     name: Fetch Lottery Results
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -53,40 +43,43 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 lxml -q
 
-      # ── Seed historical data (optional, only when seed=yes) ──
-      - name: Seed historical data (if requested)
+      - name: Seed historical data
         if: github.event.inputs.seed == 'yes'
         env: { PYTHONUNBUFFERED: "1" }
-        run: |
-          echo "Running seed_old.py..."
-          python seed_old.py
+        run: python seed_old.py
 
-      # ── KEY FIX: explicitly pass --draw based on cron hour ──
-      - name: Detect draw from cron schedule
+      # ── KEY FIX: cron hour se draw detect karo ──────────────
+      - name: Detect draw
         id: which_draw
         run: |
           H=$(date -u +"%H")
-          # Cron runs at specific UTC hours → map to exact draw
-          if   [ "$H" = "07" ]; then echo "draw=1PM" >> $GITHUB_OUTPUT
-          elif [ "$H" = "12" ]; then echo "draw=6PM" >> $GITHUB_OUTPUT
-          elif [ "$H" = "14" ]; then echo "draw=8PM" >> $GITHUB_OUTPUT
+          # Cron-based detection (scheduled runs)
+          if   [ "$H" = "07" ]; then DRAW="1PM"
+          elif [ "$H" = "12" ]; then DRAW="6PM"
+          elif [ "$H" = "14" ]; then DRAW="8PM"
           else
-            # Manual trigger — use input value
-            echo "draw=${{ github.event.inputs.draw }}" >> $GITHUB_OUTPUT
+            # Manual trigger — use input (guaranteed non-empty because required=true)
+            DRAW="${{ github.event.inputs.draw }}"
           fi
-          echo "Detected hour: $H UTC → draw: $(cat $GITHUB_OUTPUT | grep draw | cut -d= -f2)"
+          echo "draw=$DRAW" >> $GITHUB_OUTPUT
+          echo "Detected: hour=$H UTC → draw=$DRAW"
 
-      - name: Run bot.py with explicit draw
+      # ── Run bot ──────────────────────────────────────────────
+      - name: Run bot.py
         env: { PYTHONUNBUFFERED: "1" }
         run: |
           DRAW="${{ steps.which_draw.outputs.draw }}"
           DATE="${{ github.event.inputs.date }}"
-          
-          ARGS="--draw $DRAW"
-          [ -n "$DATE" ] && ARGS="$ARGS --date $DATE"
-          
-          echo "▶ python bot.py $ARGS"
-          python bot.py $ARGS
+
+          echo "Draw=$DRAW | Date=${DATE:-today}"
+
+          if [ -n "$DATE" ]; then
+            python bot.py --draw "$DRAW" --date "$DATE" --no-window
+          elif [ "$DRAW" = "all" ]; then
+            python bot.py --draw all --no-window
+          else
+            python bot.py --draw "$DRAW"
+          fi
 
       - name: Commit results
         run: |
@@ -96,7 +89,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes"
           else
-            IST=$(python3 -c "import datetime; ist=datetime.datetime.utcnow()+datetime.timedelta(hours=5,minutes=30); print(ist.strftime('%d %b %Y %I:%M %p IST'))")
+            IST=$(python3 -c "
+          import datetime
+          ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5,minutes=30)
+          print(ist.strftime('%d %b %Y %I:%M %p IST'))
+          ")
             git commit -m "🎯 Result updated — $IST"
             git push
             echo "✅ Pushed"
@@ -105,11 +102,13 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          [ -f results.json ] && python3 -c "
-          import json, datetime
+          python3 -c "
+          import json, datetime, os
           ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5,minutes=30)
-          d   = json.load(open('results.json'))
+          if not os.path.exists('results.json'):
+              print('results.json missing'); exit()
+          d = json.load(open('results.json'))
           print(f'IST: {ist:%Y-%m-%d %H:%M} | Total: {d.get(\"total_records\",0)}')
           for r in d.get('nagaland',[])[:6]:
               print(f'  {\"✅\" if r.get(\"image\") else \"❌\"} {r[\"date\"]} {r[\"draw\"]:3} | {r[\"draw_name\"]}')
-          "
+          " || echo "Summary skipped"
