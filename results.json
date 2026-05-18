@@ -1,1 +1,17 @@
-{"nagaland":[],"kerala":[],"last_updated":"","total_records":0}
+{
+  "nagaland": [
+    {
+      "date": "2026-05-18",
+      "draw": "8PM",
+      "draw_name": "Dear Flamingo Evening",
+      "image": "images/nagaland-8pm-2026-05-18.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/05/EN180526__1_.pdf",
+      "source": "official",
+      "verified": true,
+      "fetched_at": "2026-05-18T21:31:02+05:30"
+    }
+  ],
+  "kerala": [],
+  "last_updated": "2026-05-18T21:31:02+05:30",
+  "total_records": 1
+}
