@@ -246,12 +246,11 @@ function findRecord(data, state, draw) {
   for (var i = 0; i < arr.length; i++)
     if (arr[i].date === today && arr[i].draw === draw)
       return { rec: arr[i], isToday: true };
-  // 2. Latest with same draw
+  // 2. Latest with same draw (any date)
   for (var j = 0; j < arr.length; j++)
     if (arr[j].draw === draw)
       return { rec: arr[j], isToday: false };
-  // 3. Absolute latest
-  if (arr.length) return { rec: arr[0], isToday: false };
+  // Step 3 REMOVED: never show a different draw as fallback
   return { rec: null, isToday: false };
 }
 
@@ -272,7 +271,8 @@ function renderResult(rec, draw, isToday) {
 
   if (E('res-title'))    E('res-title').textContent    = titleStr;
   if (E('res-date'))     E('res-date').textContent      = fmtDate(rec.date) + ' · ' + rec.draw;
-    if (E('last-updated')) E('last-updated').textContent  =
+  if (E('res-source'))   E('res-source').textContent    = (rec.source || '').replace(/^https?:\/\//, '');
+  if (E('last-updated')) E('last-updated').textContent  =
     rec.fetched_at
       ? '🕐 Fetched: ' + rec.fetched_at.replace('T', ' ').replace('+05:30', ' IST')
       : '📅 ' + rec.date;
@@ -407,6 +407,8 @@ function loadData() {
       var state = CFG.state || 'nagaland';
       var found = findRecord(data, state, draw);
       renderResult(found.rec, draw, found.isToday);
+      renderHistory(data);
+      renderSidebar(data);
     })
     .catch(function (err) {
       clearTimeout(to);
