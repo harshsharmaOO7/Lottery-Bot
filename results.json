@@ -1,6 +1,16 @@
 {
   "nagaland": [
     {
+      "date": "2026-05-24",
+      "draw": "8PM",
+      "draw_name": "Dear Hawk Evening",
+      "image": "images/nagaland-8pm-2026-05-24.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/05/EN240526__1_.pdf",
+      "source": "official",
+      "verified": true,
+      "fetched_at": "2026-05-24T21:09:31+05:30"
+    },
+    {
       "date": "2026-05-23",
       "draw": "8PM",
       "draw_name": "Dear Ostrich Evening",
@@ -62,6 +72,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-05-23T21:06:39+05:30",
-  "total_records": 6
+  "last_updated": "2026-05-24T21:09:31+05:30",
+  "total_records": 7
 }
