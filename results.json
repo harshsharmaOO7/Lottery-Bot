@@ -1,6 +1,16 @@
 {
   "nagaland": [
     {
+      "date": "2026-05-29",
+      "draw": "8PM",
+      "draw_name": "Dear Vulture Evening",
+      "image": "images/nagaland-8pm-2026-05-29.webp",
+      "pdf": "https://lotterysambadresult.in/wp-content/uploads/2026/05/EN290526.pdf",
+      "source": "official",
+      "verified": true,
+      "fetched_at": "2026-05-29T21:43:10+05:30"
+    },
+    {
       "date": "2026-05-28",
       "draw": "8PM",
       "draw_name": "Dear Falcon Evening",
@@ -112,6 +122,6 @@
     }
   ],
   "kerala": [],
-  "last_updated": "2026-05-28T23:17:08+05:30",
-  "total_records": 11
+  "last_updated": "2026-05-29T21:43:10+05:30",
+  "total_records": 12
 }
