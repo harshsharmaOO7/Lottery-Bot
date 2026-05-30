@@ -319,10 +319,7 @@ def scrape_draw(draw, date, results, use_window=True):
             img_url, today_confirmed = extract_image(soup, draw, ist_dt)
             pdf_url = extract_pdf(soup) if soup else None
 
-            if img_url:
-                # For today's draw via window: require today's image
-                # For backfill/manual: accept any image
-                if not use_window or not is_today or today_confirmed:
+            if img_url:  # Accept any image — site always shows latest draw result
                     log.info(f"  ✅ Image found! today_confirmed={today_confirmed}")
                     
                     # Download locally

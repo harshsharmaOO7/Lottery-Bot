@@ -256,7 +256,31 @@ function findRecord(data, state, draw) {
 
 // ── Render result card ─────────────────────────────────────────────
 function renderResult(rec, draw, isToday) {
-  if (!rec) { showError(); return; }
+  if (!rec) {
+    var E = function(id){ return document.getElementById(id); };
+    if (E('loading-state')) E('loading-state').style.display = 'none';
+    if (E('error-state'))   E('error-state').style.display   = 'none';
+    if (E('result-card'))   E('result-card').style.display   = 'block';
+    var hdr = document.querySelector('#result-card .card-hdr h1');
+    if (hdr) hdr.textContent = 'Nagaland ' + draw + ' Result Today';
+    var dateEl = E('res-date');
+    if (dateEl) dateEl.textContent = 'Aaj ka result pending';
+    var wrap = E('img-wrap');
+    var sk   = E('img-skel');
+    if (sk) sk.style.display = 'none';
+    if (wrap) wrap.innerHTML =
+      '<div style="padding:48px 20px;text-align:center;color:var(--muted);">' +
+      '<div style="font-size:3rem;margin-bottom:14px;">⏳</div>' +
+      '<p style="font-weight:700;font-size:1rem;margin-bottom:8px;">' + draw + ' ka result abhi upload nahi hua</p>' +
+      '<p style="font-size:.82rem;opacity:.75;margin-bottom:16px;">Draw ke 15–20 min baad yahan dikhega</p>' +
+      '<button onclick="location.reload()" style="background:var(--brand);color:#fff;border:none;padding:9px 24px;border-radius:20px;font-weight:700;cursor:pointer;font-size:.85rem;">🔄 Refresh</button>' +
+      '</div>';
+    var dl = E('dl-btn'); if (dl) dl.style.display = 'none';
+    var lu = E('last-updated'); if (lu) lu.textContent = '';
+    var vb = E('verified-badge'); if (vb) vb.style.display = 'none';
+    document.title = 'Nagaland ' + draw + ' Result Today | Lottery Sambad';
+    return;
+  }
 
   // Banner
   if (!isToday) showBanner(rec, draw);
