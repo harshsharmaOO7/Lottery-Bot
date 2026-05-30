@@ -44,9 +44,28 @@ jobs:
         run: pip install requests beautifulsoup4 lxml -q
 
       - name: Seed historical data
-        if: github.event.inputs.seed == 'yes'
+        # Runs when: manual seed=yes OR results.json has only 8PM data (auto-detect)
+        if: >
+          github.event.inputs.seed == 'yes' ||
+          github.event_name == 'workflow_dispatch'
         env: { PYTHONUNBUFFERED: "1" }
-        run: python seed_old.py
+        run: |
+          # Auto-check: if 1PM or 6PM missing, run seed
+          python3 -c "
+          import json, sys
+          try:
+              d = json.load(open('results.json'))
+              draws = set(r['draw'] for r in d.get('nagaland',[]))
+              missing = {'1PM','6PM','8PM'} - draws
+              if missing:
+                  print(f'Missing draws: {missing} — running seed')
+                  sys.exit(1)
+              else:
+                  print(f'All draws present: {draws}')
+                  sys.exit(0)
+          except:
+              sys.exit(1)
+          " || python seed_old.py
 
       # ── KEY FIX: cron hour se draw detect karo ──────────────
       - name: Detect draw
