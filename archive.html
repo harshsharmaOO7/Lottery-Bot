@@ -40,7 +40,7 @@
 <a href="nagaland-lottery-result-today-1pm.html">🌅 Nagaland 1PM</a>
 <a href="nagaland-lottery-result-today-6pm.html">🌆 Nagaland 6PM</a>
 <a href="nagaland-lottery-result-today-8pm.html">🌙 Nagaland 8PM</a>
-<a href="kerala-lottery-result-today.html">Kerala</a>
+<a href="kerala-lottery-result-today.html">🌴 Kerala</a>
 <a class="cur" href="archive.html">📋 Old Results</a>
 </nav>
 <div class="topbar"><div class="wrap">
@@ -190,14 +190,39 @@
     return d;
   }
 
+  function imgUrl(rec){
+    var img = rec.image || '';
+    if(!img) return '';
+    if(img.startsWith('http')) return img;
+    return RAW_BASE + img;
+  }
+
   function buildItem(st, rec){
-    var pu = pdfUrl(rec);
+    var pu   = pdfUrl(rec);
+    var iu   = imgUrl(rec);
     var name = rec.draw_name || (st+' '+rec.draw);
     var vClass = rec.verified ? 'green' : '';
     var vText  = rec.verified ? '✓ Verified' : 'Unverified';
-    var dl = pu ? '<a class="btn btn-gold" href="'+pu+'" download style="padding:6px 12px;font-size:.75rem;">⬇ PDF</a>' : '';
-    var view = pu ?
-      '<a class="btn btn-blue" href="'+GD_VIEWER+encodeURIComponent(pu)+'" target="_blank" rel="noopener" style="padding:6px 12px;font-size:.75rem;">👁 View</a>' : '';
+
+    // Buttons
+    var dl   = pu ? '<a class="btn btn-gold" href="'+pu+'" download style="padding:6px 12px;font-size:.75rem;">⬇ PDF</a>' : '';
+    var view = pu ? '<a class="btn btn-blue" href="'+GD_VIEWER+encodeURIComponent(pu)+'" target="_blank" rel="noopener" style="padding:6px 12px;font-size:.75rem;">👁 View</a>' : '';
+
+    // Image block — show if available
+    var imgBlock = '';
+    if(iu){
+      imgBlock = '<div style="margin:10px 0 4px;text-align:center;">' +
+        '<img src="'+iu+'" alt="'+name+' '+fmtDate(rec.date)+'" ' +
+        'style="max-width:100%;border-radius:8px;border:1px solid var(--border);" loading="lazy" ' +
+        'onerror="this.style.display=\'none\'">' +
+        '</div>';
+    } else if(rec.seeded) {
+      // Seeded record — image not yet scraped
+      imgBlock = '<div style="margin:10px 0 4px;padding:20px;text-align:center;' +
+        'background:var(--card2);border-radius:8px;color:var(--muted);font-size:.8rem;">' +
+        '📸 Image will appear after bot runs</div>';
+    }
+
     return '<div class="arch-item" data-state="'+st+'" data-draw="'+rec.draw+'">' +
       '<div class="arch-info">' +
         '<div class="arch-name">'+name+'</div>' +
@@ -207,6 +232,7 @@
           '<span class="arch-badge">'+st.toUpperCase()+'</span>' +
           '<span class="arch-badge '+vClass+'">'+vText+'</span>' +
         '</div>' +
+        imgBlock +
       '</div>' +
       '<div class="arch-btns">'+dl+view+'</div>' +
     '</div>';
